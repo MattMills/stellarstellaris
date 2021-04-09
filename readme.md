@@ -15,6 +15,10 @@ This app currently applies patches to a running instance of (linux) Stellaris to
 ## How it does it? 
 It uses pre-defined memory addresses and the ptrace API to patch in new code or assembly of a running process in memory. All the patched issues are found by hand by me with a dissassembler and debugger. This is fairly painstaking and slow as there is no source code, only assembly machine code.
 
+## Building
+
+`clang main.c -o stellarstellaris`
+
 ## Background / Why does it exist
 I am a high level systems engineer that usually does work for large corporations on large, distributed, applications. In my past experience one of my primary specialties has been finding performance issues and bugs/design flaws in unknown codebases. Because of some of the jobs I've had, I've worked in a multitude of programming and scripting languages (C, C++, C#, Java, Visual Basic, Python, PHP, JavaScript, Assembly, Lua, perl, SAS, R, VHDL, COBOL, etc). That said, I'm not really a software developer. Most of my job experience has been in finding and fixing problems in complex systems (hundreds or thousands of servers running dozens of applications) in a high pressure environment with extremely tight timelines (IE: hours).
 
