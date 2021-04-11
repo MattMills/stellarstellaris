@@ -1,4 +1,4 @@
-llsection .text
+section .text
 global _start
 _start:
     mov    byte [rdi+0x0B0], 1
