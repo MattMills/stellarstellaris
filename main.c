@@ -246,6 +246,57 @@ int main (int argc, char *argv[]){
 	printf("+ Overriding CTextBox::KillObject with jmp, bytes: %lu\n", sizeof(CTextBox_KillObject_asm_jmp));
         pwrite(fd, &CTextBox_KillObject_asm_jmp, sizeof(CTextBox_KillObject_asm_jmp), 0x00000000022166ab);
 
+        this_addr = rwx_addr+10000;
+        const unsigned char CSpinner_KillObject_asm[] = {
+		0x53,						//push rbx
+		0xc6, 0x87, 0xb0, 0x00, 0x00, 0x00, 0x01,	//mov byte ptr [rdi+0xb0], x0x1
+                0x48, 0xb8,                                     //movabs rax,
+                ((this_addr) & 0xFF),                           // Our address for the list of deleting objects (actual list +0x10)
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+                0x48, 0x8b, 0x58, 0x08,                         //mov rbx, qword ptr [rax+0x8]
+                0x48, 0x89, 0x3c, 0xd8,                         //mov qword ptr [rax+rbx*8, rdi
+                0x48, 0xff, 0xc3,                               //inc rbx
+                0x48, 0x89, 0x58, 0x08,                         //mov qword ptr [rax+0x8], rbx
+		0x58,						//pop rax
+		0x48, 0x89, 0xfb,				//mov rbx, rdi
+		0x48, 0x8b, 0xbb, 0x28, 0x01, 0x00, 0x00,	//mov rdi, qword ptr [rbx+0x128]
+		0x53,						//push rbx
+		0x48, 0x31, 0xdb,				//xor rbx,rbx
+		0xbb, 0x6d, 0x43, 0x20, 0x02,			//mov ebx, 0x220436d - jmp back to the remainder of the stubbed function, right on our pop rbx
+		0xff, 0xe3					//jmp rbx
+
+        };
+
+        printf("+ Writing CSpinner::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CSpinner_KillObject_asm), (rwx_addr+0x200));
+        pwrite(fd, &CSpinner_KillObject_asm, sizeof(CSpinner_KillObject_asm), rwx_addr+0x200);
+
+        this_addr = rwx_addr+0x200;
+        const unsigned char CSpinner_KillObject_asm_jmp[] = {
+                0x50,                                           //push rax
+                0x48, 0xb8,                                     //movabs rax,
+                ((this_addr) & 0xFF),                           // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+                0xff, 0xe0,                                      //jmp rax
+		0x5b,						//pop rbx
+		0x90, 0x90, 0x90, 0x90				//nop nop nop nop
+        };
+
+        printf("+ Overriding CSpinner::KillObject with jmp, bytes: %lu\n", sizeof(CSpinner_KillObject_asm_jmp));
+        pwrite(fd, &CSpinner_KillObject_asm_jmp, sizeof(CSpinner_KillObject_asm_jmp), 0x0000000002204360);
+
+
 
 
 /*
