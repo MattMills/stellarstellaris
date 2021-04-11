@@ -152,6 +152,7 @@ int main (int argc, char *argv[]){
 	const unsigned char CGuiObject_KillObject_asm[] = {
 		0xc6, 0x87, 0xb0, 0x00, 0x00, 0x00, 0x01, 	// mov BYTE PTR [rdi+0xb0], 0x1
 		0x53,						// push rbx
+		0x48, 0x31, 0xdb,				// xor rbx, rbx
 		0x48, 0xb8, 					// movabs with no address
 		((this_addr) & 0xFF), 				// Our address for the list of deleting objects (actual list +0x10)
 		((this_addr>>8) & 0xFF),	
@@ -165,17 +166,87 @@ int main (int argc, char *argv[]){
 		0x48, 0x89, 0x3c, 0xd8,				// mov qword PTR rax+rbx*0x8], rdi
 		0x48, 0xff, 0xc3,				// inc rbx
 		0x48, 0x89, 0x58, 0x08,				// mov qword ptr [rax+0x8], rbx
-		0x58,						// pop rax
 		0x5b,						// pop rbx
+		0x58,						// pop rax
 		0xc3						// ret
 	};
 
 	printf("+ Writing CGuiObject::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CGuiObject_KillObject_asm), (rwx_addr+0x100));
 	pwrite(fd, &CGuiObject_KillObject_asm, sizeof(CGuiObject_KillObject_asm), rwx_addr+0x100);
 
-	const unsigned char init_val[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+	const unsigned char init_val[] = { 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	//initialize to 0x02 to our first object ends up at this_addr+0x2*0x8
 	pwrite(fd, &init_val, sizeof(init_val), this_addr+0x8);
+
+	this_addr = rwx_addr +0x100;
+	const unsigned char CGuiObject_KillObject_asm_jmp[] = {
+		0x50, 						//push rax
+		0x48, 0xb8,					//movabs
+		((this_addr) & 0xFF),                           // Our address for the jmp
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0xff, 0xe0
+	};							//jmp rax
+
+	printf("+ Overriding CGuiObject::KillObject with jmp, bytes: %lu\n", sizeof(CGuiObject_KillObject_asm_jmp));
+	pwrite(fd, &CGuiObject_KillObject_asm_jmp, sizeof(CGuiObject_KillObject_asm_jmp), 0x00000000021e3470);
+
+	this_addr = rwx_addr+10000;
+	const unsigned char CTextBox_KillObject_asm[] = {
+		0x58,						//pop rax
+		0x48, 0x8b, 0x07,				//call qword ptr [rax+0x78]
+		0xc6, 0x83, 0xb0, 0x00, 0x00, 0x00, 0x01,	//mov byte ptr [rbx+0xb0], 0x1
+		0x50,						//push rax
+		0x57,						//push rdi
+		0x48, 0x31, 0xff,				//xor rdi, rdi
+		0x48, 0x89, 0xdf,				//mov rdi, rbx
+		0x48, 0x31, 0xdb,				//xor rbx, rbx
+		0x48, 0xb8,					//movabs rax,
+		((this_addr) & 0xFF),                           // Our address for the list of deleting objects (actual list +0x10)
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0x48, 0x8b, 0x58, 0x08,				//mov rbx, qword ptr [rax+0x8]
+		0x48, 0x89, 0x3c, 0xd8,				//mov qword ptr [rax+rbx*8, rdi
+		0x48, 0xff, 0xc3,				//inc rbx
+		0x48, 0x89, 0x58, 0x08,				//mov qword ptr [rax+0x8], rbx
+		0x5f,						//pop rdi
+		0x58,						//pop rax
+		0x5b,						//pop rbx
+		0xc3						//ret
+	};
+
+	printf("+ Writing CTextBox::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CTextBox_KillObject_asm), (rwx_addr+0x150));
+        pwrite(fd, &CTextBox_KillObject_asm, sizeof(CTextBox_KillObject_asm), rwx_addr+0x150);
+	
+	this_addr = rwx_addr+0x150;
+	const unsigned char CTextBox_KillObject_asm_jmp[] = {
+		0x50,						//push rax
+		0x48, 0xb8,					//movabs rax,
+		((this_addr) & 0xFF),                           // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0xff, 0xe0					//jmp rax
+	};
+
+	printf("+ Overriding CTextBox::KillObject with jmp, bytes: %lu\n", sizeof(CTextBox_KillObject_asm_jmp));
+        pwrite(fd, &CTextBox_KillObject_asm_jmp, sizeof(CTextBox_KillObject_asm_jmp), 0x00000000022166ab);
+
+
 
 /*
 	addr = 0x0000000001e71b90; //_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai
