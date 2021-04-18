@@ -366,6 +366,16 @@ int main (int argc, char *argv[]){
 	//buf[0] = 0x55;
 	pwrite(fd, &buf, sizeof(buf), addr);
 
+
+	addr = 0x1bdbd70; // CShipGraphics::Update
+	pread(fd, &buf, sizeof(buf), addr);
+	printf("+ DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
+	buf[0] = 0xc3;
+	//buf[0] = 0x55;
+	pwrite(fd, &buf, sizeof(buf), addr);
+
+
+
 /*
 
 
