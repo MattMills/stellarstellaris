@@ -1,6 +1,6 @@
 # StellarStellaris 
 
-Patching Stellaris in memory to enhance performance, especially late game.
+Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.1 Linux ONLY.
 
 ## WARNING WARNING WARNING 
 
@@ -20,6 +20,11 @@ It uses pre-defined memory addresses and the ptrace API to patch in new code or 
 
 `clang main.c -o stellarstellaris`
 
+## Running
+Start stellaris, then run the compiled executable with the pid. It will either error out (if it's unable to find the right version magic), or apply itself.
+
+`./stellarstellaris `pgrep stellaris`
+
 ## Background / Why does it exist
 I am a high level systems engineer that usually does work for large corporations on large, distributed, applications. In my past experience one of my primary specialties has been finding performance issues and bugs/design flaws in unknown codebases. Because of some of the jobs I've had, I've worked in a multitude of programming and scripting languages (C, C++, C#, Java, Visual Basic, Python, PHP, JavaScript, Assembly, Lua, perl, SAS, R, VHDL, COBOL, etc). That said, I'm not really a software developer. Most of my job experience has been in finding and fixing problems in complex systems (hundreds or thousands of servers running dozens of applications) in a high pressure environment with extremely tight timelines (IE: hours).
 
@@ -30,6 +35,16 @@ This code is the result of my work, which I hope to expand in the future. I'd re
 If you'd like to support my work so I can spend more time on it you can contribute to my Patreon at <link>
 
 ## Theory of operation / Detail of Fixes
+
+### CFleetView::Update
+ **first pass implemented**
+The CFleetView::Update call is called every frame when the Fleet View is on screen (IE: when you've selected a ship). This is currently a bit resource intensive, although it has improved in 3.0. 
+
+The patched version uses the new Outliner every n frames define to run the update once every x frames. This can cause some glitchiness when scrolling, but it seems to be mostly just graphical re-initializations.
+
+In game testing: 
+`effect While = { count < 20000 = { create_army = { name = "Ripley clones" owner = root.owner type = "assault_army" species = root.owner } }`
+
 
 ### CGuiObject::KillObject 
  **partially implemented**
