@@ -1,6 +1,6 @@
 # StellarStellaris 
 
-Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.1 Linux ONLY.
+Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.3 Linux ONLY.
 
 ## WARNING WARNING WARNING 
 
