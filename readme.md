@@ -49,6 +49,14 @@ In game testing:
 ![gif showing performance change for cfleetview::update patch](https://github.com/MattMills/stellarstellaris/raw/master/imgs/fleetview_update_patch_v0.1.gif)
 
 
+### CFleetActionUpgradeButton::IsValid
+#### **Under investigation** 
+
+The CFleetActionUpgradeButton::IsValid call is called within CFleetView::Update, but calls into CBuildableShipUpgrade::CalcUpgradeCost which calls CBuildableShipUpgrade::CalcCost which calls CShip::CalcUpgradeCost... Ultimately, this single call to check if the upgrade button is valid ultimately calculates the cost to upgrade every ship in a fleet, iterating through every ship, but also every economic unit (resource) involved in each ship, and every modifier involved in every resource of every ship of every fleet selected, every frame.
+
+On a large late game fleet with mods, this drops framerate from 50 FPS to 4 FPS with a single fleet selected. This loss is gone when the fleet is upgraded because this call chain is elimianted once the UpgradeButton is invalid.
+
+
 ### CGuiObject::KillObject 
  **partially implemented**
  
