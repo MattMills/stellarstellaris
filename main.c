@@ -310,7 +310,7 @@ int main (int argc, char *argv[]){
 
 	const unsigned char CFleetView_Update_asm[] = {
 		0x48, 0x31, 0xc0,					  //xor rax,rax
-		0xb8, 0x64, 0x3a, 0x40, 0x03,                             //mov    $0x3403a64,%eax
+		0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
 		0x83, 0x38, 0x00,                                         //cmpl   $0x0,(%rax)
 		0x74, 0x05,                                               //je    +0x5
 		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
