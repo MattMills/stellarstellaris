@@ -78,12 +78,16 @@ int main (int argc, char *argv[]){
 	int fd = open(file, O_RDWR);
 
 	/* Game version magic string */
-	//addr = 0x2332FBF; Butler v2.8.1
-	addr = 0x260a6c6;
+	//addr = 0x2332FBF; //Butler v2.8.1
+	//addr = 0x260a6c6; //Dick v3.0.1
+	addr = 0x260a818; //Dick v3.0.2
+	//
 	//unsigned char version_buf[14];
 	//unsigned char expected_version[] = "Butler v2.8.1";
+	//unsigned char version_buf[12];
+	//unsigned char expected_version[] = "Dick v3.0.1";
 	unsigned char version_buf[12];
-	unsigned char expected_version[] = "Dick v3.0.1";
+	unsigned char expected_version[] = "Dick v3.0.2";
 
 	pread(fd, &version_buf, sizeof(version_buf), addr);
 	if(strcmp(&expected_version, &version_buf) != 0){
@@ -343,12 +347,11 @@ int main (int argc, char *argv[]){
 	};
 
 	printf("+ Overriding CFleetView::Update with jmp, bytes: %lu\n", sizeof(CFleetView_Update_asm_jmp));
-	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), 0x197c7f0);
+	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), 0x197c940);
 
 
 
-
-	addr = 0x21401c0; //_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai
+	addr = 0x2140310; //CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)
 	pread(fd, &buf, sizeof(buf), addr);
 	printf("+ DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
 
@@ -357,7 +360,7 @@ int main (int argc, char *argv[]){
 	pwrite(fd, &buf, sizeof(buf), addr);
 
 
-	addr = 0x23f9f30; //ParticleUpdate
+	addr = 0x23fa080; //ParticleUpdate
 	pread(fd, &buf, sizeof(buf), addr);
 	printf("+ DEBUG: ParticleUpdate addr: 0x%02hhx\n", *buf);
 
@@ -367,7 +370,7 @@ int main (int argc, char *argv[]){
 	pwrite(fd, &buf, sizeof(buf), addr);
 
 
-	addr = 0x1bdbd70; // CShipGraphics::Update
+	addr = 0x1bdbec0; // CShipGraphics::Update
 	pread(fd, &buf, sizeof(buf), addr);
 	printf("+ DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
 	buf[0] = 0xc3;
@@ -377,7 +380,7 @@ int main (int argc, char *argv[]){
 
 
 /*
-
+	//DEBUG changes that break stuff
 
 	addr = 0x00000000021db6f0; //CGui::PerFrameUpdate
 	pread(fd, &buf, sizeof(buf), addr);
