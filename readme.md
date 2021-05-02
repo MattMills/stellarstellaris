@@ -58,6 +58,11 @@ On a large late game fleet with mods, this drops framerate from 50 FPS to 4 FPS 
 
 As this is contained within the call to CFleetView::Update that patch makes this issue less of an issue (there is a lag spike every x frames, but the UI is more usable).
 
+### CShipGraphics::Update
+#### **hackily implemented**
+
+In late game with large modded stacks rendering individual ships themselves generates a lot of both frame time and render time. Simply disabling ship rendering completely is a quick way to eliminate all this lag. In my test game, while in a system with a stack of all fleets, FPS goes from 9.6 to 45 FPS. Since the icons and fleet power tags are still there the game is playable without the ship rendering.
+
 
 ### CGuiObject::KillObject 
  **partially implemented**
