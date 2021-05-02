@@ -37,13 +37,16 @@ If you'd like to support my work so I can spend more time on it you can contribu
 ## Theory of operation / Detail of Fixes
 
 ### CFleetView::Update
- **first pass implemented**
+#### **first pass implemented**
+
 The CFleetView::Update call is called every frame when the Fleet View is on screen (IE: when you've selected a ship). This is currently a bit resource intensive, although it has improved in 3.0. 
 
 The patched version uses the new Outliner every n frames define to run the update once every x frames. This can cause some glitchiness when scrolling, but it seems to be mostly just graphical re-initializations.
 
 In game testing: 
 `effect While = { count < 20000 = { create_army = { name = "Ripley clones" owner = root.owner type = "assault_army" species = root.owner } }`
+
+![gif showing performance change for cfleetview::update patch](https://github.com/MattMills/stellarstellaris/raw/master/imgs/fleetview_update_patch_v0.1.gif)
 
 
 ### CGuiObject::KillObject 
