@@ -1,5 +1,5 @@
 all: cguiobject_killobject.bin ctextbox_killobject.bin cspinner_killobject.bin cinstanttextbox_killobject.bin \
-	cfleetview_update.bin
+	cfleetview_update.bin cmapiconmanager_updategalacticobjecticons.bin
 
 cguiobject_killobject.bin: cguiobject_killobject.o
 	gcc cguiobject_killobject.o -nostartfiles -static -o cguiobject_killobject.bin
@@ -14,6 +14,8 @@ cinstanttextbox_killobject.bin: cinstanttextbox_killobject.o
 
 cfleetview_update.bin: cfleetview_update.o
 	gcc cfleetview_update.o -nostartfiles -static -o cfleetview_update.bin
+cmapiconmanager_updategalacticobjecticons.bin: cmapiconmanager_updategalacticobjecticons.o
+	gcc cmapiconmanager_updategalacticobjecticons.o -nostartfiles -static -o cmapiconmanager_updategalacticobjecticons.bin
 
 
 cguiobject_killobject.o: cguiobject_killobject.asm
@@ -29,6 +31,8 @@ cinstanttextbox_killobject.o: cinstanttextbox_killobject.asm
 
 cfleetview_update.o: cfleetview_update.asm
 	nasm -felf64 cfleetview_update.asm -o cfleetview_update.o
+cmapiconmanager_updategalacticobjecticons.o: cmapiconmanager_updategalacticobjecticons.asm
+	nasm -felf64 cmapiconmanager_updategalacticobjecticons.asm -o cmapiconmanager_updategalacticobjecticons.o
 
 
 clean:
@@ -36,4 +40,5 @@ clean:
 		ctextbox_killobject.o ctextbox_killobject.bin \
 		cspinner_killobject.o cspinner_killobject.bin \
 		cinstanttextbox_killobject.o cinstanttextbox_killobject.bin \
-		cfleetview_update.o cfleetview_update.bin 
+		cfleetview_update.o cfleetview_update.bin \
+		cmapiconmanager_updategalacticobjecticons.o cmapiconmanager_updategalacticobjecticons.bin

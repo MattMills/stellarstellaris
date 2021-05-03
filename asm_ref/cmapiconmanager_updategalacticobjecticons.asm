@@ -3,18 +3,19 @@ global _start
 _start:
     xor    rax, rax
     mov    rax, 0x3403b84 ; address of outliner frame counter
-    cmp    dword [rax], 0x0
+    cmp    dword [rax], 0x1
     db     0x74, 0x5
     add    rsp, 0x8
     ret
     pop    rax
     push   rbp
+    mov    rbp, rsp
     push   r15
     push   r14
     push   r13
     push   r12
     push   rbx
-    sub    rsp, 0x108
+    sub    rsp, 0x38
     push   rax
     ret
 _jmp:
