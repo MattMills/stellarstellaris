@@ -78,6 +78,8 @@ It looks like `GALAXY_SHOW_FLEETS_ZOOM` define may have been added to compensate
 
 I set the define above the max zoom level (so icons are never culled based on zoom) and patched this func to render every 7 frames, and FPS impact is decreased significantly to about 4-5 FPS.
 
+![gif showing performance change for CMapIconManager::UpdateGalacticObjectIcons patch](https://github.com/MattMills/stellarstellaris/raw/master/imgs/cmapiconmanager_updategalacticobjecticons_0.1.gif)
+
 ### CGuiObject::KillObject 
  **partially implemented**
  
