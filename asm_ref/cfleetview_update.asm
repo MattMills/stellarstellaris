@@ -2,7 +2,7 @@ section .text
 global _start
 _start:
     xor    rax, rax
-    mov    rax, 0x3403a64 ; address of outliner frame counter
+    mov    rax, 0x3403b84 ; address of outliner frame counter
     cmp    dword [rax], 0x0
     xor    rax, rax
     db     0x74, 0x5
