@@ -61,7 +61,11 @@ As this is contained within the call to CFleetView::Update that patch makes this
 ### CShipGraphics::Update
 #### **hackily implemented**
 
-In late game with large modded stacks rendering individual ships themselves generates a lot of both frame time and render time. Simply disabling ship rendering completely is a quick way to eliminate all this lag. In my test game, while in a system with a stack of all fleets, FPS goes from 9.6 to 45 FPS. Since the icons and fleet power tags are still there the game is playable without the ship rendering.
+In late game with large modded stacks rendering individual ships themselves generates a lot of both frame time and render time. Simply disabling ship rendering completely is a quick way to eliminate all this lag. In my test game, while in a system with a stack of all fleets, FPS goes from 9.6 to 45 FPS. Since the world map icons and fleet power tags are still there the game is playable without the ship rendering.
+
+Obviously, this is a super hacky "fix", but ultimately it's simple and quick, Demo below is in my late game test NSC2/ACOT/Gigastructure test game (year 2479, 10146 navy capacity in 13 fleets)
+
+![gif showing performance change for CShipGraphics::Update patch out](https://github.com/MattMills/stellarstellaris/raw/master/imgs/cshipgraphics_update_v0.1.gif)
 
 
 ### CTechnologyStatus::IncreaseTechnologyLevel
