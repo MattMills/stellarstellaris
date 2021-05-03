@@ -69,6 +69,14 @@ In late game with large modded stacks rendering individual ships themselves gene
 
 During the CGameState::DailyUpdate() this func will get called if a repeatable research completes, eventually hitting CModifierNode::Update and CShip::CalculateModifier, which appears to have some logic that does something to a modifier by malloc'ing. It appears this is likely done for every ship, so lag spike.
 
+### CMapIconManager::UpdateGalacticObjectIcons
+#### **First pass implemented**
+
+While the galaxy map is showing (particularly with a complete sentry array mega) all icons are redrawn or updated every frame leading to a ~16 FPS decrease in my test game.
+
+It looks like `GALAXY_SHOW_FLEETS_ZOOM` define may have been added to compensate for this, but in reality the icon culling once the zoom level is exceeded causes more lag then just leaving the icons there, at least for me.
+
+I set the define above the max zoom level (so icons are never culled based on zoom) and patched this func to render every 7 frames, and FPS impact is decreased significantly to about 4-5 FPS.
 
 ### CGuiObject::KillObject 
  **partially implemented**
