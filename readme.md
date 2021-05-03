@@ -85,6 +85,9 @@ While working on CGuiObject::KillObject I noticed that when the Starbase section
  
 There seems to be a job system intended to "steal" cpu time during particle updates and push it out to multiple threads, but it seems like this can get in a buggy state and cause issues, maybe due to the context switching and overhead, maybe due to some added locking intended to protect things. It's been hard to reproduce, but I've seen fairly extreme lag spikes start occuring in systems with heavy particle effects (gigastructure Birch world) that is immedietly eliminated when ParticleUpdate and CPdxParticleObject::RenderBuckets are patched out. There is also some frame-time jitter that is eliminated with these two, although it does seem minor.
 
+#### Update 5/2/2021
+Looks like if this is disabled something related to particles is leaked, eventually frame rate declines due to wasted time in ParticleIsDone()
+
 ### CCountry::ListSpecies 
  **Not Implemented, needs investigation**
  
