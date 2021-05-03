@@ -108,9 +108,12 @@ Looks like if this is disabled something related to particles is leaked, eventua
 CCountry::ListSpecies appears to be called in the frame update, in order to determine habitability for the colonizable planet icons on the map. If there are a significant number of species obviously doing this every frame is going to be performance impacting, and I can't think of any reason that information would need to be frame-accurate (If the colonizable planet icon shows up 10 seconds AFTER you get a new species, I'm sure that'd be fine, it doesn't need to be within 20 milliseconds). The parent function doees appear to have some kind of Caching in it, so I should look into that as well.
 
 ### COutliner::InternalUpdate 
- **Not Implemented, needs investigation **
+ **Not Implemented, workaround implemented in game **
  
 This function is called in every frame whether all outliner sections are closed or not, and even if the entire outliner is closed. It doesn't seem to impact anything if it's patched out while the outliner is closed, need to investigating if there is anything hacked into this function that is updating other game state. Also, if it's just updating the data within the outliner then I don't think it needs to be per-frame,. if the outliner updated every second that'd be 1/60th the load and still up-to-date.
+
+#### Update as of v3.0:
+As of v3.0 there is a new define that implements the every x frames functionality, `OUTLINER_UPDATE_EVERY_N_FRAMES`
 
 ### Other Outliner 
  **Not implemented, needs investigation**
