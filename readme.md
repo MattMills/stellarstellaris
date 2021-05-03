@@ -91,6 +91,8 @@ While planet view is open a very large number of calculations are done per frame
 
 Simple hack works for me for now, improves the UI responsiveness with lag spikes every 7 frames instead of continuously.
 
+Note to future self: Might make sense to check the current pop count on planet before enabling this.
+
 ### CGuiObject::KillObject 
  **partially implemented**
  
