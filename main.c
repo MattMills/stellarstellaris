@@ -349,7 +349,8 @@ int main (int argc, char *argv[]){
 	printf("+ Overriding CFleetView::Update with jmp, bytes: %lu\n", sizeof(CFleetView_Update_asm_jmp));
 	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), 0x197c940);
 
-
+/*
+ * 	This seems to disable particle effects on it's own, not sure if it's a useful change though, disabling for now.
 
 	addr = 0x2140310; //CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)
 	pread(fd, &buf, sizeof(buf), addr);
@@ -358,8 +359,9 @@ int main (int argc, char *argv[]){
 	buf[0] = 0xc3; 
 	//buf[0] = 0x55;
 	pwrite(fd, &buf, sizeof(buf), addr);
-
-
+*/
+/*	
+ *	This being patched out causes particle something's to leak, frame rate decreases over time by wasting time in ParticleIsDone()
 	addr = 0x23fa080; //ParticleUpdate
 	pread(fd, &buf, sizeof(buf), addr);
 	printf("+ DEBUG: ParticleUpdate addr: 0x%02hhx\n", *buf);
@@ -368,7 +370,7 @@ int main (int argc, char *argv[]){
 	buf[0] = 0xc3;
 	//buf[0] = 0x55;
 	pwrite(fd, &buf, sizeof(buf), addr);
-
+*/
 
 	addr = 0x1bdbec0; // CShipGraphics::Update
 	pread(fd, &buf, sizeof(buf), addr);
