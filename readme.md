@@ -84,6 +84,13 @@ I set the define above the max zoom level (so icons are never culled based on zo
 
 ![gif showing performance change for CMapIconManager::UpdateGalacticObjectIcons patch](https://github.com/MattMills/stellarstellaris/raw/master/imgs/cmapiconmanager_updategalacticobjecticons_0.1.gif)
 
+### CPlanetView::Update
+#### **First pass implemented**
+
+While planet view is open a very large number of calculations are done per frame and per pop, I've patched this func to render every 7 frames for a performance increase on high-pop planets, although it does cause some weirdness in the UIs as they initialize with their default content. A more ideal solution would be to disintermediate the rendering and data logic such that rendering is just rendering data from memory, not calculating, then redesigning the calculation logic such that it is distributed over time (ie rebuilding data for pop_count/days_in_freshness_interval per day). Unfortunately this func is about 20 KB compiled, can't imagine what the code looks like, so that probably wouldn't be easy. 
+
+Simple hack works for me for now, improves the UI responsiveness with lag spikes every 7 frames instead of continuously.
+
 ### CGuiObject::KillObject 
  **partially implemented**
  
