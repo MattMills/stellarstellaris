@@ -349,6 +349,55 @@ int main (int argc, char *argv[]){
 	printf("+ Overriding CFleetView::Update with jmp, bytes: %lu\n", sizeof(CFleetView_Update_asm_jmp));
 	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), 0x197c940);
 
+
+
+	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm[] = {                     
+		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+		0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
+		0x83, 0x38, 0x01,                                         //cmpl   $0x1,(%rax)
+		0x74, 0x05,                                               //je     .+0x5
+		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
+		0xc3,                                                     //retq   
+		0x58,                                                     //pop    %rax
+		0x55,                                                     //push   %rbp
+		0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
+		0x41, 0x57,                                               //push   %r15
+		0x41, 0x56,                                               //push   %r14
+		0x41, 0x55,                                               //push   %r13
+		0x41, 0x54,                                               //push   %r12
+		0x53,                                                     //push   %rbx
+		0x48, 0x83, 0xec, 0x38,                                   //sub    $0x38,%rsp
+		0x50,                                                     //push   %rax
+		0xc3                                                      //ret
+	};
+
+
+        printf("+ Writing CMapIconManager::UpdateGalacticObjectIcons replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), (rwx_addr+0x300));
+        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), rwx_addr+0x300);
+
+	this_addr = rwx_addr+0x300;
+	
+	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm_jmp[] = {                    
+		0x48, 0x31, 0xc0,                                       //xor    %rax,%rax
+		0x48, 0xb8,                                             //movabs rax,
+                ((this_addr) & 0xFF),                           // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0xff, 0xd0,                                               //callq  *%rax
+		0x90, 0x90						// nop nop
+	};
+
+        printf("+ Overriding CMapIconManager::UpdateGalacticObjectIcons with jmp, bytes: %lu\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp));
+        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm_jmp, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp), 0x1d86640);
+
+
+
+
 /*
  * 	This seems to disable particle effects on it's own, not sure if it's a useful change though, disabling for now.
 
