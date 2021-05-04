@@ -18,7 +18,9 @@ It uses pre-defined memory addresses and the ptrace API to patch in new code or 
 
 ## Building
 
-`clang main.c -o stellarstellaris`
+```
+clang main.c pdlsym.c -o stellarstellaris
+```
 
 ## Running
 Start stellaris, then run the compiled executable with the pid. It will either error out (if it's unable to find the right version magic), or apply itself.
