@@ -129,6 +129,6 @@ This function is called in every frame whether all outliner sections are closed 
 As of v3.0 there is a new define that implements the every x frames functionality, `OUTLINER_UPDATE_EVERY_N_FRAMES`
 
 ### Other Outliner 
-####**Not implemented, needs investigation**
+#### **Not implemented, needs investigation**
  
 Each section in the outliner has a performance impact, some a LOT more than others (starbases and military fleets being the two big late game impactors, but it probably depends on the gamestate, if you have 10,000 science ships I'm sure that tab would suck). The performance impact is eliminated (aside from the above InternalUpdate) when the sections are closed, although oddly if the sections are open when the outliner itself is closed, the impact remains. I believe most of the impact is from aggregating data to build things like military power strings for fleets too frequently (once per frame), it should be simple to decrease the frequency of these updates assuming the UI isn't totally recent every frame (which it doesn't appear to be). That said, it looked like there may be an improvement to this in 3.0 so this one will wait for that.
