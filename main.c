@@ -31,6 +31,23 @@
 
 
 
+uintptr_t find_remote_symbol(pid_t pid, const char *mangled_symbol, const char *demangled_symbol ){
+
+	void *base = (void *)0x400000; // Static for now, might need to be dynamic in the future
+        uintptr_t  *target_addr = pdlsym(pid, base, mangled_symbol);
+
+        if(target_addr != 0){
+                printf("+ Found target address for %s at %02lx\n", demangled_symbol, (uintptr_t) target_addr);
+        }else{
+                fprintf(stderr, "!!! Fatal Error: Failed to find address for function %s (%s)\n", demangled_symbol, mangled_symbol);
+		ptrace(PTRACE_DETACH, pid, NULL, NULL);
+                exit(1);
+        }
+
+	return (uintptr_t) target_addr;
+}
+
+
 int main (int argc, char *argv[]){
 	pid_t target;
 	struct user_regs_struct regs;
@@ -38,6 +55,7 @@ int main (int argc, char *argv[]){
 	int syscall;
 	long dst;
 	unsigned long addr;
+	uintptr_t target_addr;
 	unsigned char buf[1];
 	unsigned char backup_rip_code[2];
 	const unsigned char replacement_rip_code[2] = {0x0f, 0x05};
@@ -307,6 +325,7 @@ int main (int argc, char *argv[]){
 
 */
 
+	if( /*CFleetView_Update*/ 1){
 
 	const unsigned char CFleetView_Update_asm[] = {
 		0x48, 0x31, 0xc0,					  //xor rax,rax
@@ -345,11 +364,12 @@ int main (int argc, char *argv[]){
 		0xff, 0xd0,                                                //callq  *%rax
 		0x90, 0x90					//nop nop
 	};
+	
+	target_addr =  find_remote_symbol(target, "_ZN10CFleetView6UpdateEv", "CFleetView::Update()");
+	printf("+ Overriding CFleetView::Update (%lu) with jmp, bytes: %lu\n", target_addr, sizeof(CFleetView_Update_asm_jmp));
+	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), target_addr);
 
-	printf("+ Overriding CFleetView::Update with jmp, bytes: %lu\n", sizeof(CFleetView_Update_asm_jmp));
-	pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), 0x197c940);
-
-
+	}
 
 	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm[] = {                     
 		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
@@ -392,41 +412,73 @@ int main (int argc, char *argv[]){
 		0x90, 0x90						// nop nop
 	};
 
+	target_addr =  find_remote_symbol(target, "_ZN15CMapIconManager25UpdateGalacticObjectIconsEv", "CMapIconManager::UpdateGalacticObjectIcons()");
         printf("+ Overriding CMapIconManager::UpdateGalacticObjectIcons with jmp, bytes: %lu\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp));
-        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm_jmp, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp), 0x1d86640);
+        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm_jmp, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp), (uintptr_t) target_addr);
+
+
+	const unsigned char CPlanetView_Update_asm[] = {
+		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+		0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
+		0x83, 0x38, 0x02,                                         //cmpl   $0x2,(%rax)
+		0x74, 0x05,                                               //je     .+0x5
+		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
+		0xc3,                                                     //retq   
+		0x58,                                                     //pop    %rax
+		0x55,                                                     //push   %rbp
+		0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
+		0x41, 0x57,                                               //push   %r15
+		0x41, 0x56,                                               //push   %r14
+		0x41, 0x55,                                               //push   %r13
+		0x41, 0x54,                                               //push   %r12
+		0x53,                                                     //push   %rbx
+		0x48, 0x81, 0xec, 0x08, 0x05, 0x00, 0x00,                 //sub    $0x508,%rsp
+		0x50,                                                     //push   %rax
+		0xc3                                                      //ret
+	};
+        
+	this_addr = rwx_addr+0x400;
+
+	printf("+ Writing CPlanetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CPlanetView_Update_asm), (this_addr));
+        pwrite(fd, &CPlanetView_Update_asm, sizeof(CPlanetView_Update_asm), this_addr);
+                                          
+	const unsigned char CPlanetView_Update_asm_jmp[] = {                 
+		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+		0x48, 0xb8,                                             //movabs rax,
+                ((this_addr) & 0xFF),                           // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0xff, 0xd0,                                               //callq  *%rax
+		0x90,                                                     //nop
+		0x90, 0x90, 0x90, 0x90                                                      //nop nopnopnop
+	};
+
+	target_addr =  find_remote_symbol(target, "_ZN11CPlanetView6UpdateEv", "CPlanetView::Update()");
+	printf("+ Overriding CPlanetView::Update with jmp, bytes: %lu\n", sizeof(CPlanetView_Update_asm_jmp));
+        pwrite(fd, &CPlanetView_Update_asm_jmp, sizeof(CPlanetView_Update_asm_jmp),  target_addr);
 
 
 
-
-/*
- * 	This seems to disable particle effects on it's own, not sure if it's a useful change though, disabling for now.
-
-	addr = 0x2140310; //CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)
-	pread(fd, &buf, sizeof(buf), addr);
+	target_addr =  find_remote_symbol(target, "_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai", "CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)");
+	pread(fd, &buf, sizeof(buf),  target_addr);
 	printf("+ DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
 
-	buf[0] = 0xc3; 
-	//buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), addr);
-*/
-/*	
- *	This being patched out causes particle something's to leak, frame rate decreases over time by wasting time in ParticleIsDone()
-	addr = 0x23fa080; //ParticleUpdate
-	pread(fd, &buf, sizeof(buf), addr);
-	printf("+ DEBUG: ParticleUpdate addr: 0x%02hhx\n", *buf);
+	buf[0] = 0xc3;   // ret
+	//buf[0] = 0x55; //
+	pwrite(fd, &buf, sizeof(buf), target_addr);
 
 
-	buf[0] = 0xc3;
-	//buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), addr);
-*/
-
-	addr = 0x1bdbec0; // CShipGraphics::Update
-	pread(fd, &buf, sizeof(buf), addr);
+	target_addr =  find_remote_symbol(target, "_ZN13CShipGraphics6UpdateEffR23CEntityGarbageCollectorPK15CGalacticObject", "CShipGraphics::Update(float, float, CEntityGarbageCollector&, CGalacticObject const*)");
+	pread(fd, &buf, sizeof(buf),  target_addr);
 	printf("+ DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
 	buf[0] = 0xc3;
 	//buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), addr);
+	pwrite(fd, &buf, sizeof(buf), target_addr);
 
 
 
