@@ -86,11 +86,11 @@ int main (int argc, char *argv[]){
 	//unsigned char expected_version[] = "Butler v2.8.1";
 	//unsigned char version_buf[12];
 	//unsigned char expected_version[] = "Dick v3.0.1";
-	unsigned char version_buf[12];
-	unsigned char expected_version[] = "Dick v3.0.2";
+	const char  expected_version[] = "Dick v3.0.2";
+	char version_buf[sizeof(expected_version)];
 
 	pread(fd, &version_buf, sizeof(version_buf), addr);
-	if(strcmp(&expected_version, &version_buf) != 0){
+	if(strcmp(expected_version, version_buf) != 0){
 		fprintf(stderr, "\nFATAL ERROR: Invalid version string, aborting!\n");
 		exit(1);
 	}
