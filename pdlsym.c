@@ -7,7 +7,10 @@
 #include <string.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <unistd.h>
+
+int fd = 0;
 
 struct elf {
     pid_t pid;
@@ -29,41 +32,15 @@ struct elf {
 
 static int readN(pid_t pid, const void *addr, void *buf, size_t len)
 {
-    int errnold = errno;
-    if (!pid) {
-        memmove(buf, addr, len);
-        return 1;
+    if (fd == 0){
+	    char file[64];
+	    sprintf(file, "/proc/%ld/mem", (long)pid);
+	    fd = open(file, O_RDWR);
     }
 
-    errno = 0;
-    while (!errno && len > 0) {
-        size_t i, j;
-        if ((i = ((size_t)addr % sizeof(long))) || len < sizeof(long)) {
-            union {
-                long value;
-                char buf[sizeof(long)];
-            } data;
-            data.value = ptrace(PTRACE_PEEKDATA, pid, (char *)addr - i, NULL);
-            if (!errno) {
-                for (j = i; j < sizeof(long) && j-i < len; j++)
-                    ((char *)buf)[j-i] = data.buf[j];
-                addr = (char *)addr + (j-i);
-                buf = (char *)buf + (j-i);
-                len -= j-i;
-            }
-        } else {
-            for (i = 0, j = len/sizeof(long); i < j; i++) {
-                *(long *)buf = ptrace(PTRACE_PEEKDATA, pid, addr, NULL);
-                if (errno) break;
-                addr = (char *)addr + sizeof(long);
-                buf = (char *)buf + sizeof(long);
-                len -= sizeof(long);
-            }
-        }
-    }
-    if (!errno)
-        errno = errnold;
-    return !len;
+    pread(fd, buf, len, (long)(addr));
+
+    return !0;
 }
 
 static int Ndaer(pid_t pid, const void *addr, void *buf, size_t len)
@@ -114,8 +91,8 @@ static int loadelf(pid_t pid, const void *addr, struct elf *elf)
      */
     elf->pid = pid;
     elf->base = (uintptr_t)base;
-    if (readN(pid, base, &magic, 4) && !memcmp(&magic, "\x7F" "ELF", 4)
-            && ((elf->class = get8(pid, base+4)) == 1 || elf->class == 2)
+    readN(pid, base, &magic, 4);
+    if ((!memcmp(&magic, "\x7F" "ELF", 4) && (elf->class = get8(pid, base+4)) == 1 || elf->class == 2)
             && ((elf->data = get8(pid, base+5)) == 1 || elf->data == 2)
             && get8(pid, base+6) == 1) {
         union { uint16_t value; char buf[2]; } data;
@@ -124,6 +101,7 @@ static int loadelf(pid_t pid, const void *addr, struct elf *elf)
         elf->type = get16(elf, base + 0x10);
         elf->W = (2 << elf->class);
     } else {
+	printf("! BAD ELF\n");
         /* Bad ELF */
         return 0;
     }
@@ -240,6 +218,10 @@ void *pdlsym(pid_t pid, void *base, const char *symbol)
                     break;
             }
         }
+    }
+    if(fd != 0){
+	    close(fd);
+	    fd = 0;
     }
     return (void *)value;
 }
