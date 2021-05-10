@@ -1,6 +1,6 @@
 # StellarStellaris 
 
-Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.3 Linux ONLY.
+Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.2 Linux ONLY. A Windows version might be attempted but without symbols (.pdb) it will likely be a simplified version.
 
 ## WARNING WARNING WARNING 
 
@@ -8,10 +8,10 @@ This is pre-Beta software, use at your own risk. It only attaches in memory, so 
 
 Currently there are no binaries provided and you'll need to compile it yourself if you'd like to use it.
 
-It may leak memory, There is no protection against installing it multiple times on 1 instance of Stellaris and doing so will leak a (tiny) amount of memory and may cause some weird minor UI issues (If you catch it in the right millisecond, you may get a GUI Element that is "closed" but still showing).
+It may leak memory, There is no protection against installing it multiple times on 1 instance of Stellaris and doing so will leak a (tiny) amount of memory.
 
 ## What it does 
-This app currently applies patches to a running instance of (linux) Stellaris to improve performance and fix bugs. In the future it may add modding functionality.
+This app currently applies patches to a running instance of (linux) Stellaris to improve performance and fix bugs. In the future it may add modding functionality. Current focus is on paused game framerate performance and crash avoidance/bypass. 
 
 ### Current primary changes
  * PERF: Reduce frequency CFleetView::Update to decrease lag when large fleets are selected
@@ -19,7 +19,13 @@ This app currently applies patches to a running instance of (linux) Stellaris to
  * PERF: Reduce frequency of CPlanetView::Update to decrease lag when planets with many pops are selected
  * PERF: Disables Particle effects.
  * PERF: Disables ship 3d rendering.
- * PERF: (disabled-in-progress) Fixup for Gui Object removal speed.
+
+### NEXT (unimplmemented / in progress) changes
+ * PERF: (disabled-in-progress) Fixup for Gui Object removal speed (related to CGui::PerFrameUpdate).
+ * PERF: (planning-unimplemented) Move CGuiGraphics::Render2dTree processing to independent thread and run continuously 1 frame behind
+ * PERF: (planning-unimplemented) Build active gui object list in independent thread for CGui::HandelInput mouseover/hasfocus loop
+ * CRASHFIX: (planning-unimplemented) Perma-patchout Army Outliner group crash to resolve large army related crashes
+ * FEATUREFIX: (planning-unimplemented) Rework Army outliner group so it works at any size army without crashing or dissappearing
 
 ## How it does it? 
 It uses pre-defined memory addresses and the ptrace API to patch in new code or assembly of a running process in memory. All the patched issues are found by hand by me with a dissassembler and debugger. This is fairly painstaking and slow as there is no source code, only assembly machine code.
@@ -31,7 +37,7 @@ clang main.c pdlsym.c -o stellarstellaris
 ```
 
 ## Running
-Start stellaris, then run the compiled executable with the pid. It will either error out (if it's unable to find the right version magic), or apply itself.
+Start stellaris, then run the compiled executable with the pid. It will either error out (if it's unable to find the right version magic), or apply itself. I usually apply it at the main menu, you should see the particle effect dissapear.
 
 ```
 ./stellarstellaris `pgrep stellaris`
