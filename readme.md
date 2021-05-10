@@ -13,6 +13,14 @@ It may leak memory, There is no protection against installing it multiple times 
 ## What it does 
 This app currently applies patches to a running instance of (linux) Stellaris to improve performance and fix bugs. In the future it may add modding functionality.
 
+### Current primary changes
+ * PERF: Reduce frequency CFleetView::Update to decrease lag when large fleets are selected
+ * PERF: Reduce frequency of CMapIconManager::UpdateGalacticObjectIcons to decrease lag in the galaxy map
+ * PERF: Reduce frequency of CPlanetView::Update to decrease lag when planets with many pops are selected
+ * PERF: Disables Particle effects.
+ * PERF: Disables ship 3d rendering.
+ * PERF: (disabled-in-progress) Fixup for Gui Object removal speed.
+
 ## How it does it? 
 It uses pre-defined memory addresses and the ptrace API to patch in new code or assembly of a running process in memory. All the patched issues are found by hand by me with a dissassembler and debugger. This is fairly painstaking and slow as there is no source code, only assembly machine code.
 
