@@ -2,6 +2,12 @@ section .text
 global _start
 _start:
     pop    rax
+    push   rbx
+    mov    rbx, rdi
+    mov    rdi, qword [rbx+0xc8]
+    mov    rax, qword [rdi]
+    call   qword [rax+0xf8]
+    mov    rdi, qword [rbx+0xc8]
     mov    rax, qword [rdi]
     call   qword [rax+0x78]
     mov    byte [rbx+0x0B0], 1

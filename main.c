@@ -173,7 +173,7 @@ int main (int argc, char *argv[]){
 	printf("+ Restoring RIP code from backup\n");
 	pwrite(fd, &backup_rip_code, sizeof(backup_rip_code), regs_backup.rip);
 
-/*
+
 	//We are back to normal execution with our own shiny memory allocation for executable code.
 	this_addr = rwx_addr+10000;
 	const unsigned char CGuiObject_KillObject_asm[] = {
@@ -220,16 +220,24 @@ int main (int argc, char *argv[]){
 		0xff, 0xe0
 	};							//jmp rax
 
+	target_addr =  find_remote_symbol(target, "_ZN10CGuiObject10KillObjectEv", "CGuiObject::KillObject()");
 	printf("+ Overriding CGuiObject::KillObject with jmp, bytes: %lu\n", sizeof(CGuiObject_KillObject_asm_jmp));
-	pwrite(fd, &CGuiObject_KillObject_asm_jmp, sizeof(CGuiObject_KillObject_asm_jmp), 0x00000000021e3470);
+	pwrite(fd, &CGuiObject_KillObject_asm_jmp, sizeof(CGuiObject_KillObject_asm_jmp), target_addr);
 
 	this_addr = rwx_addr+10000;
 	const unsigned char CTextBox_KillObject_asm[] = {
 		0x58,						//pop rax
-		0x48, 0x8b, 0x07,				//call qword ptr [rax+0x78]
-		0xc6, 0x83, 0xb0, 0x00, 0x00, 0x00, 0x01,	//mov byte ptr [rbx+0xb0], 0x1
-		0x50,						//push rax
-		0x57,						//push rdi
+		0x53,                                           //push   %rbx
+		0x48, 0x89, 0xfb,                                         //mov    %rdi,%rbx
+		0x48, 0x8b, 0xbb, 0xc8, 0x00, 0x00, 0x00,                 //mov    0xc8(%rbx),%rdi
+		0x48, 0x8b, 0x07,                                         //mov    (%rdi),%rax
+		0xff, 0x90, 0xf8, 0x00, 0x00, 0x00,                       //callq  *0xf8(%rax)
+		0x48, 0x8b, 0xbb, 0xc8, 0x00, 0x00, 0x00,                 //mov    0xc8(%rbx),%rdi
+		0x48, 0x8b, 0x07,                                         //mov    (%rdi),%rax
+		0xff, 0x50, 0x78,                                         //callq  *0x78(%rax)
+		0xc6, 0x83, 0xb0, 0x00, 0x00, 0x00, 0x01,                 //movb   $0x1,0xb0(%rbx)
+		0x50,                                                     //push   %rax
+		0x57,                                                     //push   %rdi
 		0x48, 0x31, 0xff,				//xor rdi, rdi
 		0x48, 0x89, 0xdf,				//mov rdi, rbx
 		0x48, 0x31, 0xdb,				//xor rbx, rbx
@@ -252,10 +260,10 @@ int main (int argc, char *argv[]){
 		0xc3						//ret
 	};
 
-	printf("+ Writing CTextBox::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CTextBox_KillObject_asm), (rwx_addr+0x150));
-        pwrite(fd, &CTextBox_KillObject_asm, sizeof(CTextBox_KillObject_asm), rwx_addr+0x150);
+	this_addr = rwx_addr+0x200;
+	printf("+ Writing CTextBox::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CTextBox_KillObject_asm), this_addr);
+        pwrite(fd, &CTextBox_KillObject_asm, sizeof(CTextBox_KillObject_asm), this_addr);
 	
-	this_addr = rwx_addr+0x150;
 	const unsigned char CTextBox_KillObject_asm_jmp[] = {
 		0x50,						//push rax
 		0x48, 0xb8,					//movabs rax,
@@ -270,13 +278,12 @@ int main (int argc, char *argv[]){
 		0xff, 0xe0					//jmp rax
 	};
 
+	target_addr =  find_remote_symbol(target, "_ZN8CTextBox10KillObjectEv", "CTextBox::KillObject()");
 	printf("+ Overriding CTextBox::KillObject with jmp, bytes: %lu\n", sizeof(CTextBox_KillObject_asm_jmp));
-        pwrite(fd, &CTextBox_KillObject_asm_jmp, sizeof(CTextBox_KillObject_asm_jmp), 0x00000000022166ab);
+        pwrite(fd, &CTextBox_KillObject_asm_jmp, sizeof(CTextBox_KillObject_asm_jmp), target_addr);
 
         this_addr = rwx_addr+10000;
         const unsigned char CSpinner_KillObject_asm[] = {
-		0x53,						//push rbx
-		0xc6, 0x87, 0xb0, 0x00, 0x00, 0x00, 0x01,	//mov byte ptr [rdi+0xb0], x0x1
                 0x48, 0xb8,                                     //movabs rax,
                 ((this_addr) & 0xFF),                           // Our address for the list of deleting objects (actual list +0x10)
                 ((this_addr>>8) & 0xFF),
@@ -286,26 +293,23 @@ int main (int argc, char *argv[]){
                 ((this_addr>>40) & 0xFF),
                 ((this_addr>>48) & 0xFF),
                 ((this_addr>>56) & 0xFF),
-                0x48, 0x8b, 0x58, 0x08,                         //mov rbx, qword ptr [rax+0x8]
-                0x48, 0x89, 0x3c, 0xd8,                         //mov qword ptr [rax+rbx*8, rdi
-                0x48, 0xff, 0xc3,                               //inc rbx
-                0x48, 0x89, 0x58, 0x08,                         //mov qword ptr [rax+0x8], rbx
-		0x58,						//pop rax
-		0x48, 0x89, 0xfb,				//mov rbx, rdi
-		0x48, 0x8b, 0xbb, 0x28, 0x01, 0x00, 0x00,	//mov rdi, qword ptr [rbx+0x128]
-		0x53,						//push rbx
-		0x48, 0x31, 0xdb,				//xor rbx,rbx
-		0xbb, 0x6d, 0x43, 0x20, 0x02,			//mov ebx, 0x220436d - jmp back to the remainder of the stubbed function, right on our pop rbx
-		0xff, 0xe3					//jmp rbx
+		0x48, 0x8b, 0x58, 0x08,                                   //mov    0x8(%rax),%rbx
+		0x48, 0x89, 0x3c, 0xd8,                                   //mov    %rdi,(%rax,%rbx,8)
+		0x48, 0xff, 0xc3,                                         //inc    %rbx
+		0x48, 0x89, 0x58, 0x08,                                   //mov    %rbx,0x8(%rax)
+		0x48, 0x89, 0xfb,                                         //mov    %rdi,%rbx
+		0xc6, 0x83, 0xb0, 0x00, 0x00, 0x00, 0x01,                 //movb   $0x1,0xb0(%rbx)
+		0x48, 0x8b, 0xbb, 0x28, 0x01, 0x00, 0x00,                 //mov    0x128(%rbx),%rdi
+		0xc3                                                      //
 
         };
 
-        printf("+ Writing CSpinner::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CSpinner_KillObject_asm), (rwx_addr+0x200));
-        pwrite(fd, &CSpinner_KillObject_asm, sizeof(CSpinner_KillObject_asm), rwx_addr+0x200);
+	this_addr = rwx_addr+0x300;
+        printf("+ Writing CSpinner::KillObject replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CSpinner_KillObject_asm), this_addr);
+        pwrite(fd, &CSpinner_KillObject_asm, sizeof(CSpinner_KillObject_asm), this_addr);
 
-        this_addr = rwx_addr+0x200;
         const unsigned char CSpinner_KillObject_asm_jmp[] = {
-                0x50,                                           //push rax
+		0x53,                                                     //push   %rbx
                 0x48, 0xb8,                                     //movabs rax,
                 ((this_addr) & 0xFF),                           // Our address for the jmp target
                 ((this_addr>>8) & 0xFF),
@@ -315,15 +319,15 @@ int main (int argc, char *argv[]){
                 ((this_addr>>40) & 0xFF),
                 ((this_addr>>48) & 0xFF),
                 ((this_addr>>56) & 0xFF),
-                0xff, 0xe0,                                      //jmp rax
-		0x5b,						//pop rbx
-		0x90, 0x90, 0x90, 0x90				//nop nop nop nop
+                0xff, 0xd0,                                      //callq rax
+		0x90, 0x90, 0x90, 0x90, 0x90			// nop nop nop nop nop
         };
 
+	target_addr =  find_remote_symbol(target, "_ZN8CSpinner10KillObjectEv", "CSpinner::KillObject()");
         printf("+ Overriding CSpinner::KillObject with jmp, bytes: %lu\n", sizeof(CSpinner_KillObject_asm_jmp));
-        pwrite(fd, &CSpinner_KillObject_asm_jmp, sizeof(CSpinner_KillObject_asm_jmp), 0x0000000002204360);
+        pwrite(fd, &CSpinner_KillObject_asm_jmp, sizeof(CSpinner_KillObject_asm_jmp), target_addr);
 
-*/
+
 
 	if( /*CFleetView_Update*/ 1){
 
@@ -345,11 +349,12 @@ int main (int argc, char *argv[]){
 		0x50,                                                     //push   %rax
 		0xc3                                                      //ret
 	};
-        
-	printf("+ Writing CFleetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CFleetView_Update_asm), (rwx_addr+0x250));
-	pwrite(fd, &CFleetView_Update_asm, sizeof(CFleetView_Update_asm), rwx_addr+0x250);
 
-	this_addr = rwx_addr+0x250;
+        this_addr = rwx_addr+0x400;
+
+	printf("+ Writing CFleetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CFleetView_Update_asm), this_addr);
+	pwrite(fd, &CFleetView_Update_asm, sizeof(CFleetView_Update_asm), this_addr);
+
 	const unsigned char CFleetView_Update_asm_jmp[] = {                 
 		0x48, 0x31, 0xc0,                                       //xor    %rax,%rax
 		0x48, 0xb8,                                    		//movabs rax,
@@ -392,10 +397,10 @@ int main (int argc, char *argv[]){
 	};
 
 
-        printf("+ Writing CMapIconManager::UpdateGalacticObjectIcons replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), (rwx_addr+0x300));
-        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), rwx_addr+0x300);
+	this_addr = rwx_addr+0x500;
+        printf("+ Writing CMapIconManager::UpdateGalacticObjectIcons replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
+        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
 
-	this_addr = rwx_addr+0x300;
 	
 	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm_jmp[] = {                    
 		0x48, 0x31, 0xc0,                                       //xor    %rax,%rax
@@ -437,7 +442,7 @@ int main (int argc, char *argv[]){
 		0xc3                                                      //ret
 	};
         
-	this_addr = rwx_addr+0x400;
+	this_addr = rwx_addr+0x600;
 
 	printf("+ Writing CPlanetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CPlanetView_Update_asm), (this_addr));
         pwrite(fd, &CPlanetView_Update_asm, sizeof(CPlanetView_Update_asm), this_addr);
