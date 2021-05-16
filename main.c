@@ -28,13 +28,14 @@
 #include <sys/uio.h>
 
 #include "pdlsym.h"
+#include "pmparser.h"
 
 
 
 uintptr_t find_remote_symbol(pid_t pid, const char *mangled_symbol, const char *demangled_symbol ){
 
 	void *base = (void *)0x400000; // Static for now, might need to be dynamic in the future
-        uintptr_t  *target_addr = pdlsym(pid, base, mangled_symbol);
+        uintptr_t  *target_addr = pdlsym(base, mangled_symbol);
 
         if(target_addr != 0){
                 printf("+ Found target address for %s at %02lx\n", demangled_symbol, (uintptr_t) target_addr);
@@ -53,6 +54,7 @@ int main (int argc, char *argv[]){
 	struct user_regs_struct regs;
 	struct user_regs_struct regs_backup;
 	int syscall;
+	int status = 0;
 	long dst;
 	unsigned long addr;
 	uintptr_t target_addr;
@@ -66,6 +68,10 @@ int main (int argc, char *argv[]){
 	}
 
 	target = atoi(argv[1]);
+
+
+	pdlsym_init(target);
+
 	printf ("+ Attempting to attach to process %d\n", target);
 	if ((ptrace (PTRACE_ATTACH, target, NULL, NULL)) < 0){
 		fprintf(stderr, "+ Failed to attach to process\n");
@@ -74,7 +80,29 @@ int main (int argc, char *argv[]){
 	}
 
 	printf ("+ Waiting for process...\n");
-	wait (NULL);
+	do {
+            int w = waitpid(-1, &status, 0);
+            if (w == -1) {
+                perror("waitpid error :");
+                exit(EXIT_FAILURE);
+            }
+
+            if (WIFEXITED(status)) {
+                printf("exited, status=%d\n", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\n", WSTOPSIG(status));
+		if(WSTOPSIG(status) == 11){
+			ptrace (PTRACE_GETREGS, target, NULL, &regs);
+			printf("\n\nFATAL: sigsegv rip: 0x%llx\n\n", regs.rip);
+			exit(EXIT_FAILURE);
+		}
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\n");
+            }
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status)  && !WIFSTOPPED(status));
+	printf("DBG: wait status: %d\n", status);
 
 
 	printf("+ Getting process registers\n");
@@ -150,7 +178,24 @@ int main (int argc, char *argv[]){
 	}
 
 	printf("+ Waiting for process...\n");
-	wait(NULL);
+	do {
+            int w = waitpid(-1, &status, 0);
+            if (w == -1) {
+                perror("waitpid error :");
+                exit(EXIT_FAILURE);
+            }
+
+            if (WIFEXITED(status)) {
+                printf("exited, status=%d\n", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\n", WSTOPSIG(status));
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\n");
+            }
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status) && !WIFSTOPPED(status));
+        printf("DBG: wait status: %d\n", status);
 
 	printf("+ Getting post-mmap process registers\n");
         if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
@@ -521,8 +566,249 @@ int main (int argc, char *argv[]){
 
 */
 
+	//Addresses of remote functions
+	const uintptr_t pthread_create_addr = 	find_remote_symbol(target, "pthread_create", 	"pthread_create");
+	const uintptr_t usleep_addr =		find_remote_symbol(target, "usleep", 		"usleep");
+	const uintptr_t pthread_self_addr = 	find_remote_symbol(target, "pthread_self",	"pthread_self");
+	const uintptr_t time_addr = 		find_remote_symbol(target, "time", 		"time");
+	const uintptr_t printf_addr = 		find_remote_symbol(target, "printf",		"printf");
+
+	this_addr = rwx_addr+0x700;
+	const unsigned char printf_string[] = "THREAD %ld heartbeat %lu\n";
+	pwrite(fd, &printf_string, sizeof(printf_string), this_addr);
+	const uintptr_t printf_string_addr = this_addr;
+
+	this_addr = rwx_addr+0x800;
+	const unsigned char render_thread_asm[] = {
+		0x55,                                                           //push   rbp
+		0x48, 0x89, 0xe5,                                               //mov    rbp, rsp
+		0x48, 0x83, 0xec, 0x20,                                         //sub    rsp, 0x20
+		0x48, 0x89, 0x7d, 0xf8,                                         //mov    -0x8(%rbp), rdi
+		0xbf, 0x40, 0x42, 0x0F, 0x00,                                   //mov    $0xF4240,%edi
+                0x48, 0xb8,                                                     //movabs rax,
+                ((usleep_addr) & 0xFF),                                         // Our address for the jmp target
+                ((usleep_addr>>8) & 0xFF),
+                ((usleep_addr>>16) & 0xFF),
+                ((usleep_addr>>24) & 0xFF),
+                ((usleep_addr>>32) & 0xFF),
+                ((usleep_addr>>40) & 0xFF),
+                ((usleep_addr>>48) & 0xFF),
+                ((usleep_addr>>56) & 0xFF),
+		0xff, 0xd0,                                               	//callq  *%rax
+
+
+		0x89, 0x45, 0xf4,                                               //mov    %eax,-0xc(%rbp)
+		0x48, 0xb8,                                                     //movabs rax,
+                ((pthread_self_addr) & 0xFF),                                   // Our address for the jmp target
+                ((pthread_self_addr>>8) & 0xFF),
+                ((pthread_self_addr>>16) & 0xFF),
+                ((pthread_self_addr>>24) & 0xFF),
+                ((pthread_self_addr>>32) & 0xFF),
+                ((pthread_self_addr>>40) & 0xFF),
+                ((pthread_self_addr>>48) & 0xFF),
+                ((pthread_self_addr>>56) & 0xFF),
+                0xff, 0xd0,                                                    //callq  *%rax
+		0x31, 0xc9,                                                    //xor    %ecx,%ecx
+		0x89, 0xcf,                                                    //mov    %ecx,%edi
+		0x48, 0x89, 0x45, 0xe8,                                        //mov    %rax,-0x18(%rbp)
+
+		0x48, 0xb8,                                                    //movabs rax,
+                ((time_addr) & 0xFF),                                          // Our address for the jmp target
+                ((time_addr>>8) & 0xFF),
+                ((time_addr>>16) & 0xFF),
+                ((time_addr>>24) & 0xFF),
+                ((time_addr>>32) & 0xFF),
+                ((time_addr>>40) & 0xFF),
+                ((time_addr>>48) & 0xFF),
+                ((time_addr>>56) & 0xFF),
+                0xff, 0xd0,                                                    //callq  *%rax
+
+
+		0x48, 0xbf,                                                    //movabs rdi,
+                ((printf_string_addr) & 0xFF),                                 // Our address for the jmp target
+                ((printf_string_addr>>8) & 0xFF),
+                ((printf_string_addr>>16) & 0xFF),
+                ((printf_string_addr>>24) & 0xFF),
+                ((printf_string_addr>>32) & 0xFF),
+                ((printf_string_addr>>40) & 0xFF),
+                ((printf_string_addr>>48) & 0xFF),
+                ((printf_string_addr>>56) & 0xFF),
+
+		0x48, 0x8b, 0x75, 0xe8,                                        //mov    -0x18(%rbp),%rsi
+		0x48, 0x89, 0xc2,                                              //mov    %rax,%rdx
+		0xb0, 0x00,                                                    //mov    $0x0,%al
+
+		0x48, 0xbb,                                                    //movabs rbx,
+                ((printf_addr) & 0xFF),                                        // Our address for the jmp target
+                ((printf_addr>>8) & 0xFF),
+                ((printf_addr>>16) & 0xFF),
+                ((printf_addr>>24) & 0xFF),
+                ((printf_addr>>32) & 0xFF),
+                ((printf_addr>>40) & 0xFF),
+                ((printf_addr>>48) & 0xFF),
+                ((printf_addr>>56) & 0xFF),
+                0xff, 0xd3,                                                    //callq  *%rbx
+		0x89, 0x45, 0xe4,                                              //mov    %eax,-0x1c(%rbp)
+
+		0x48, 0xb8,                                                    //movabs rax,
+                ((this_addr) & 0xFF),                                          // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0x48, 0x83, 0xc4, 0x20,                                       //add    rsp,0x20
+		0x5d,                                                         //pop rbp
+                0xff, 0xe0,                                                   //jmp  *%rax
+		0xcc							      //int3
+	};
+
+	printf("+ Writing render_thread_asm, bytes: %lu to addr: 0x%02llx\n", sizeof(render_thread_asm), (this_addr));
+	pwrite(fd, &render_thread_asm, sizeof(render_thread_asm), this_addr);
+
+	const uintptr_t render_thread_addr = rwx_addr+0x800;
+        const uintptr_t thread_id_addr = rwx_addr+0x8;
+
+	this_addr = rwx_addr+0xa00;
+	const unsigned char thread_init_asm[] = {
+		0x90, 0x90,							//nop nop
+		0x55,								// push   rbp
+		0x6a, 0x00,							// push 0x0
+		0x48, 0x89, 0xe5,						// mov    rsp, rbp
+		0x48, 0x83, 0xec, 0x20,     					// sub    rsp,0x20
+		0x31, 0xc0,                                                     // xor    eax,eax
+		0x89, 0xc1,                                                     // mov    ecx,eax
+		0x89, 0x7d, 0xfc,						// mov dword ptr [rbp-0x4, edi
+		0x48, 0x89, 0x75, 0xf0,						// mov qword ptr [rbp-0x10], rsi
+		//0x48, 0x89, 0xce,        					// mov    rsi,rcx
+		//0x48, 0x31, 0xc9,						// xor rcx,rcx
+		0x48, 0x31, 0xf6,						// xor rsi, rsi
+		
+		0x48, 0xba,                                                     // movabs rdx,
+                ((render_thread_addr) & 0xFF),                                  // Our address for the jmp target
+                ((render_thread_addr>>8) & 0xFF),
+                ((render_thread_addr>>16) & 0xFF),
+                ((render_thread_addr>>24) & 0xFF),
+                ((render_thread_addr>>32) & 0xFF),
+                ((render_thread_addr>>40) & 0xFF),
+                ((render_thread_addr>>48) & 0xFF),
+                ((render_thread_addr>>56) & 0xFF),
+		0x48, 0xbf,                                                     //movabs rdi,
+                ((thread_id_addr) & 0xFF),                                      // Our address for the jmp target
+                ((thread_id_addr>>8) & 0xFF),
+                ((thread_id_addr>>16) & 0xFF),
+                ((thread_id_addr>>24) & 0xFF),
+                ((thread_id_addr>>32) & 0xFF),
+                ((thread_id_addr>>40) & 0xFF),
+                ((thread_id_addr>>48) & 0xFF),
+                ((thread_id_addr>>56) & 0xFF),
+		0x48, 0xbb,                                                     //movabs rbx,
+                ((pthread_create_addr) & 0xFF),                                 // Our address for the jmp target
+                ((pthread_create_addr>>8) & 0xFF),
+                ((pthread_create_addr>>16) & 0xFF),
+                ((pthread_create_addr>>24) & 0xFF),
+                ((pthread_create_addr>>32) & 0xFF),
+                ((pthread_create_addr>>40) & 0xFF),
+                ((pthread_create_addr>>48) & 0xFF),
+                ((pthread_create_addr>>56) & 0xFF),
+                0xff, 0xd3,                                               	//callq  *%rbx
+		0x45, 0x31, 0xc0,        				  	//xor    r8d,r8d
+		0x89, 0x45, 0xec,					  	//mov    DWORD PTR [rbp-0x14],eax
+		0x44, 0x89, 0xc0,						//mov    eax,r8d
+		0x48, 0x83, 0xc4, 0x20,     					//add    rsp,0x20
+		0x5d,								// pop rbp
+		0x5d,							  	// pop rbp
+		0xcc,								//int3 (breakpoint interrupt)
+		0xc3
+
+	};
+
+	printf("+ Writing thread_init_asm, bytes: %lu to addr: 0x%02llx\n", sizeof(thread_init_asm), (this_addr));
+	pwrite(fd, &thread_init_asm, sizeof(thread_init_asm), this_addr-2);
+
+
+        printf("+ Getting process registers\n");
+        if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
+                perror ("ptrace(GETREGS):");
+                exit (1);
+        }
+
+        printf("+ Getting backup process registers\n");
+        if ((ptrace (PTRACE_GETREGS, target, NULL, &regs_backup)) < 0){
+                perror ("ptrace(GETREGS):");
+                exit (1);
+        }
+
+	regs.rip = this_addr;
+	printf("+ process register rip: %llx\n", regs.rip);
+	printf("+ process register rip: %llx, rax: %llx, rbx: %llx, rcx: %llx, rdx: %llx, rsp: %llx, rbp: %llx, rsi: %llx, rdi: %llx, r12: %llx, r13: %llx, r14: %llx, r15: %llx\n", regs.rip, regs.rax, regs.rbx, regs.rcx, regs.rdx, regs.rsp, regs.rbp, regs.rsi, regs.rdi, regs.r12, regs.r13, regs.r14, regs.r15);
+
+	if ((ptrace (PTRACE_SETREGS, target, NULL, &regs)) < 0){
+                perror ("ptrace(SETREGS):");
+                exit(1);
+        }
+	
+
+	//while(regs.rip != this_addr+sizeof(thread_init_asm)-2){
+	if ((ptrace (PTRACE_CONT, target, NULL, NULL)) < 0){
+                perror("ptrace(CONT):");
+                exit(1);
+        }
+
+        printf("+ Waiting for process...\n");
+        
+        do {
+            int w = waitpid(-1, &status, 0);
+            if (w == -1) {
+                perror("waitpid error :");
+                exit(EXIT_FAILURE);
+            }
+
+            if (WIFEXITED(status)) {
+                printf("exited, status=%d\n", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\n", WSTOPSIG(status));
+                if(WSTOPSIG(status) == 11){
+                        ptrace (PTRACE_GETREGS, target, NULL, &regs);
+                        printf("\n\nFATAL: sigsegv rip: 0x%llx, rsp: 0x%llx, rbp: 0x%llx\n\n", regs.rip, regs.rsp, regs.rbp);
+                        exit(EXIT_FAILURE);
+                }
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\n");
+            }
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status)  && !WIFSTOPPED(status));
+
+        printf("DBG: wait status: %d\n", status);
+
+	printf("+ Getting process registers\n");
+        if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
+	        perror ("ptrace(GETREGS):");
+	        exit (1);
+	}
+
+	printf("+ process register rip: %llx, rax: %llx, rbx: %llx, rcx: %llx, rdx: %llx, rsp: %llx, rbp: %llx, rsi: %llx, rdi: %llx, r12: %llx, r13: %llx, r14: %llx, r15: %llx\n", regs.rip, regs.rax, regs.rbx, regs.rcx, regs.rdx, regs.rsp, regs.rbp, regs.rsi, regs.rdi, regs.r12, regs.r13, regs.r14, regs.r15);
+
+	//}
+	printf("+ Restoring Registers from backup\n");
+
+        if ((ptrace (PTRACE_SETREGS, target, NULL, &regs_backup)) < 0){
+	        perror ("ptrace(SETREGS):");
+	        exit(1);
+	}
+
+	if ((ptrace (PTRACE_CONT, target, NULL, NULL)) < 0){
+	        perror("ptrace(CONT):");
+	        exit(1);
+        }
+
+
 	close(fd);
 
 	ptrace(PTRACE_DETACH, target, NULL, NULL);
+	pdlsym_exit();
 	return 0;
 }

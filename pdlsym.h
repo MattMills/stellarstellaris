@@ -20,4 +20,6 @@ static uint64_t get64(struct elf *elf, const void *addr);
 static uintptr_t getW(struct elf *elf, const void *addr);
 static int loadelf(pid_t pid, const void *addr, struct elf *elf);
 static int sym_iter(struct elf *elf, int i, uint32_t *stridx, uintptr_t *value);
-void *pdlsym(pid_t pid, void *base, const char *symbol);
+void pdlysm_init(pid_t pid);
+void pdlsym_exit();
+void *pdlsym(void *base, const char *symbol);

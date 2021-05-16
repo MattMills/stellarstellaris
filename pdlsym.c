@@ -10,7 +10,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "pmparser.h"
+
 int fd = 0;
+pid_t pid = 0;
+procmaps_iterator* procmaps = NULL;
 
 struct elf {
     pid_t pid;
@@ -28,16 +32,13 @@ struct elf {
 
     uintptr_t symtab, syment;
     uintptr_t strtab, strsz;
+    uintptr_t rela, relasz, relaent;
+    uintptr_t pltrelsz, pltgot; 
 };
+
 
 static int readN(pid_t pid, const void *addr, void *buf, size_t len)
 {
-    if (fd == 0){
-	    char file[64];
-	    sprintf(file, "/proc/%ld/mem", (long)pid);
-	    fd = open(file, O_RDWR);
-    }
-
     pread(fd, buf, len, (long)(addr));
 
     return !0;
@@ -146,10 +147,15 @@ static int loadelf(pid_t pid, const void *addr, struct elf *elf)
                 if ((type = getW(elf, tag + 2*elf->W*j))) {
                     value = getW(elf, tag + 2*elf->W*j + elf->W);
                     switch (type) {
-                    case 5: elf->strtab = value; break; /* DT_STRTAB */
-                    case 6: elf->symtab = value; break; /* DT_SYMTAB */
-                    case 10: elf->strsz = value; break; /* DT_STRSZ */
-                    case 11: elf->syment = value; break; /* DT_SYMENT */
+		    case 2: elf->pltrelsz = value; break;	/* DT_PLTRELSZ */
+	            case 3: elf->pltgot = value; break; 	/* DT_PLTGOT */
+                    case 5: elf->strtab = value; break; 	/* DT_STRTAB */
+                    case 6: elf->symtab = value; break; 	/* DT_SYMTAB */
+		    case 7: elf->rela = value; break; 		/* DT_RELA */
+		    case 8: elf->relasz = value; break; 	/* DT_RELASZ */
+		    case 9: elf->relaent = value; break; 	/* DT_RELAENT */
+                    case 10: elf->strsz = value; break; 	/* DT_STRSZ */
+                    case 11: elf->syment = value; break; 	/* DT_SYMENT */
                     default: break;
                     }
                 } else {
@@ -159,6 +165,20 @@ static int loadelf(pid_t pid, const void *addr, struct elf *elf)
             }
         }
     }
+/*
+    printf(
+	"!!! DEBUG: ELF\n strtab: 0x%lx\n symtab: 0x%lx\n rela: 0x%lx\n relasz: 0x%lx\n relaent: 0x%lx\n strsz: 0x%lx\n syment: 0x%lx\n pltgot: 0x%lx\n pltrelsz: 0x%lx\n\n",
+	elf->strtab, 
+	elf->symtab, 
+	elf->rela, 
+	elf->relasz, 
+	elf->relaent, 
+	elf->strsz, 
+	elf->syment, 
+	elf->pltgot, 
+	elf->pltrelsz
+    );
+*/
 
     /* Check that we have all program headers required for dynamic linking */
     if (!loads || !elf->strtab || !elf->strsz || !elf->symtab || !elf->syment)
@@ -191,37 +211,78 @@ static int sym_iter(struct elf *elf, int i, uint32_t *stridx, uintptr_t *value)
     return 0;
 }
 
-void *pdlsym(pid_t pid, void *base, const char *symbol)
+void pdlsym_init(pid_t this_pid){
+    pid = this_pid;
+
+    char file[64];
+    sprintf(file, "/proc/%ld/mem", (long)pid);
+    fd = open(file, O_RDWR);
+}
+
+void pdlsym_exit(){
+    pmparser_free(procmaps);
+
+    close(fd);
+}
+
+
+void *pdlsym(void *base, const char *symbol)
 {
-    struct elf elf;
-    uintptr_t value = 0;
-    if (loadelf((pid == getpid()) ? 0 : pid, base, &elf)) {
-        int i;
-        uint32_t stridx;
-        const char *strtab;
-        size_t size = strlen(symbol) + 1;
-        strtab = (char *)elf.strtab + ((elf.strtab < elf.base) ? elf.base : 0);
-        for (i = 0; sym_iter(&elf, i, &stridx, &value); value = 0, i++) {
-            if (value && stridx+size <= elf.strsz) {
-                size_t j = 0;
-                while (j < size) {
-                    char buf[sizeof(long)];
-                    int n = ((uintptr_t)strtab + stridx+j) % sizeof(buf);
-                    n = (size-j < sizeof(buf)) ? (size-j) : (sizeof(buf) - n);
-                    if (!readN(elf.pid, strtab + stridx+j, &buf, n))
-                        break;
-                    if (memcmp(&symbol[j], &buf, n))
-                        break;
-                    j += n;
-                }
-                if (j == size)
-                    break;
-            }
-        }
+    procmaps = pmparser_parse(pid);
+    if(procmaps==NULL){
+        printf ("FATAL: [map]: cannot parse the memory map of %d\n",pid);
+        exit(1);
     }
-    if(fd != 0){
-	    close(fd);
-	    fd = 0;
+
+    uintptr_t value = 0;
+    procmaps_struct* maps_tmp=NULL;
+    uint32_t mapbuf;
+    size_t j = 0;
+    size_t size = 1000000;
+
+
+    while( (maps_tmp = pmparser_next(procmaps)) != NULL){
+        readN(pid, maps_tmp->addr_start, &mapbuf, 0x4);
+        
+        if(memcmp(&mapbuf, "\x7F" "ELF", 4)!=0) continue;
+
+	//printf("DBG: Addr: %x File: %s\n", maps_tmp->addr_start, maps_tmp->pathname);
+
+	struct elf elf;
+        if (loadelf((pid == getpid()) ? 0 : pid, maps_tmp->addr_start, &elf)) {
+		int i;
+	        uint32_t stridx;
+	        const char *strtab;
+
+        	size = strlen(symbol) + 1;
+	        strtab = (char *)elf.strtab + ((elf.strtab < elf.base) ? elf.base : 0);
+	
+	        for (i = 0; sym_iter(&elf, i, &stridx, &value); value = 0, i++) {
+	            if (value && stridx+size <= elf.strsz) {
+	                j = 0;
+	                while (j < size) {
+	                    char buf[size];
+	                    int n = ((uintptr_t)strtab + stridx+j) % sizeof(buf);
+	                    n = (size-j < sizeof(buf)) ? (size-j) : (sizeof(buf) - n);
+	                    if (!readN(elf.pid, strtab + stridx+j, &buf, n))
+	                        break;
+	                    if (memcmp(&symbol[j], &buf, n))
+	                        break;
+	                    j += n;
+	                }
+	                if (j == size){
+			    char nulbuf[1];
+			    readN(elf.pid, strtab + stridx+j-1, &nulbuf, 1);
+			    if(memcmp("\0", &nulbuf, 0x1) == 0){
+			            printf("DBG: Symbol: %s, base: 0x%lx, file: %s, size: %zu, char: %x, strtab: 0x%lx, stridx: %u, j: %zu\n", symbol, elf.base, maps_tmp->pathname, j, (unsigned int) *nulbuf, (unsigned long)strtab, stridx, j);
+				    if(value != 0x7f8f6a097f70)
+			                    return (void *)value;
+			    }
+			}
+
+	            }
+	        }
+	    }
     }
     return (void *)value;
 }
