@@ -67,7 +67,7 @@ int main (int argc, char *argv[]){
 		exit(1);
 	}
 
-	target = atoi(argv[1]);
+	target = (pid_t) atoi(argv[1]);
 
 
 	pdlsym_init(target);
@@ -95,14 +95,14 @@ int main (int argc, char *argv[]){
                 printf("stopped by signal %d\n", WSTOPSIG(status));
 		if(WSTOPSIG(status) == 11){
 			ptrace (PTRACE_GETREGS, target, NULL, &regs);
-			printf("\n\nFATAL: sigsegv rip: 0x%llx\n\n", regs.rip);
+			printf("\n\n!!! FATAL: sigsegv rip: 0x%llx\n\n", regs.rip);
 			exit(EXIT_FAILURE);
 		}
             } else if (WIFCONTINUED(status)) {
                 printf("continued\n");
             }
         } while (!WIFEXITED(status) && !WIFSIGNALED(status)  && !WIFSTOPPED(status));
-	printf("DBG: wait status: %d\n", status);
+	printf("-  DEBUG: wait status: %d\n", status);
 
 
 	printf("+ Getting process registers\n");
@@ -137,7 +137,7 @@ int main (int argc, char *argv[]){
 
 	pread(fd, &version_buf, sizeof(version_buf), addr);
 	if(strcmp(expected_version, version_buf) != 0){
-		fprintf(stderr, "\nFATAL ERROR: Invalid version string, aborting!\n");
+		fprintf(stderr, "\n!!! FATAL ERROR: Invalid version string, aborting!\n");
 		exit(1);
 	}
 
@@ -195,7 +195,7 @@ int main (int argc, char *argv[]){
                 printf("continued\n");
             }
         } while (!WIFEXITED(status) && !WIFSIGNALED(status) && !WIFSTOPPED(status));
-        printf("DBG: wait status: %d\n", status);
+        printf("-  DEBUG: wait status: %d\n", status);
 
 	printf("+ Getting post-mmap process registers\n");
         if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
@@ -519,7 +519,7 @@ int main (int argc, char *argv[]){
 
 	target_addr =  find_remote_symbol(target, "_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai", "CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)");
 	pread(fd, &buf, sizeof(buf),  target_addr);
-	printf("+ DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
+	printf("-  DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
 
 	buf[0] = 0xc3;   // ret
 	//buf[0] = 0x55; //
@@ -528,7 +528,7 @@ int main (int argc, char *argv[]){
 
 	target_addr =  find_remote_symbol(target, "_ZN13CShipGraphics6UpdateEffR23CEntityGarbageCollectorPK15CGalacticObject", "CShipGraphics::Update(float, float, CEntityGarbageCollector&, CGalacticObject const*)");
 	pread(fd, &buf, sizeof(buf),  target_addr);
-	printf("+ DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
+	printf("-  DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
 	buf[0] = 0xc3;
 	//buf[0] = 0x55;
 	pwrite(fd, &buf, sizeof(buf), target_addr);
@@ -540,7 +540,7 @@ int main (int argc, char *argv[]){
 
 	addr = 0x00000000021db6f0; //CGui::PerFrameUpdate
 	pread(fd, &buf, sizeof(buf), addr);
-	printf("+ DEBUG: CGui::PerFrameUpdate addr: 0x%02hhx\n", *buf);
+	printf("-  DEBUG: CGui::PerFrameUpdate addr: 0x%02hhx\n", *buf);
 
 	//buf[0] = 0xc3;
         buf[0] = 0x41;
@@ -548,7 +548,7 @@ int main (int argc, char *argv[]){
 	
 	addr = 0x00000000021dab10; //CGui::HandelInput
 	pread(fd, &buf, sizeof(buf), addr);
-	printf("+ DEBUG: CGui::HandelInput addr: 0x%02hhx\n", *buf);
+	printf("-  DEBUG: CGui::HandelInput addr: 0x%02hhx\n", *buf);
 
 	//buf[0] = 0xc3;
 	buf[0] = 0x55;
@@ -558,7 +558,7 @@ int main (int argc, char *argv[]){
 
 	addr = 0x00000000018bc900; //COutliner::InternalUpdate
 	pread(fd, &buf, sizeof(buf), addr);
-	printf("+ DEBUG: COutliner::InternalUpdate addr: 0x%02hhx\n", *buf);
+	printf("-  DEBUG: COutliner::InternalUpdate addr: 0x%02hhx\n", *buf);
 
 	//buf[0] = 0xc3;
 	buf[0] = 0x55;
@@ -665,7 +665,7 @@ int main (int argc, char *argv[]){
 		0xcc							      //int3
 	};
 
-	printf("+ Writing render_thread_asm, bytes: %lu to addr: 0x%02llx\n", sizeof(render_thread_asm), (this_addr));
+	printf("+ Writing render_thread_asm, bytes: %lu @ 0x%02llx\n", sizeof(render_thread_asm), (this_addr));
 	pwrite(fd, &render_thread_asm, sizeof(render_thread_asm), this_addr);
 
 	const uintptr_t render_thread_addr = rwx_addr+0x800;
@@ -774,7 +774,7 @@ int main (int argc, char *argv[]){
                 printf("stopped by signal %d\n", WSTOPSIG(status));
                 if(WSTOPSIG(status) == 11){
                         ptrace (PTRACE_GETREGS, target, NULL, &regs);
-                        printf("\n\nFATAL: sigsegv rip: 0x%llx, rsp: 0x%llx, rbp: 0x%llx\n\n", regs.rip, regs.rsp, regs.rbp);
+                        printf("\n\n!!! FATAL: sigsegv rip: 0x%llx, rsp: 0x%llx, rbp: 0x%llx\n\n", regs.rip, regs.rsp, regs.rbp);
                         exit(EXIT_FAILURE);
                 }
             } else if (WIFCONTINUED(status)) {
@@ -782,7 +782,7 @@ int main (int argc, char *argv[]){
             }
         } while (!WIFEXITED(status) && !WIFSIGNALED(status)  && !WIFSTOPPED(status));
 
-        printf("DBG: wait status: %d\n", status);
+        printf("-  DEBUG: wait status: %d\n", status);
 
 	printf("+ Getting process registers\n");
         if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){

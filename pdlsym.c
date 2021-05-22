@@ -167,7 +167,7 @@ static int loadelf(pid_t pid, const void *addr, struct elf *elf)
     }
 /*
     printf(
-	"!!! DEBUG: ELF\n strtab: 0x%lx\n symtab: 0x%lx\n rela: 0x%lx\n relasz: 0x%lx\n relaent: 0x%lx\n strsz: 0x%lx\n syment: 0x%lx\n pltgot: 0x%lx\n pltrelsz: 0x%lx\n\n",
+	"-  DEBUG: ELF\n strtab: 0x%lx\n symtab: 0x%lx\n rela: 0x%lx\n relasz: 0x%lx\n relaent: 0x%lx\n strsz: 0x%lx\n syment: 0x%lx\n pltgot: 0x%lx\n pltrelsz: 0x%lx\n\n",
 	elf->strtab, 
 	elf->symtab, 
 	elf->rela, 
@@ -230,7 +230,7 @@ void *pdlsym(void *base, const char *symbol)
 {
     procmaps = pmparser_parse(pid);
     if(procmaps==NULL){
-        printf ("FATAL: [map]: cannot parse the memory map of %d\n",pid);
+        printf ("!!! FATAL: [map]: cannot parse the memory map of %d\n",pid);
         exit(1);
     }
 
@@ -246,7 +246,7 @@ void *pdlsym(void *base, const char *symbol)
         
         if(memcmp(&mapbuf, "\x7F" "ELF", 4)!=0) continue;
 
-	//printf("DBG: Addr: %x File: %s\n", maps_tmp->addr_start, maps_tmp->pathname);
+	//printf("-  DEBUG: Addr: %x File: %s\n", maps_tmp->addr_start, maps_tmp->pathname);
 
 	struct elf elf;
         if (loadelf((pid == getpid()) ? 0 : pid, maps_tmp->addr_start, &elf)) {
@@ -274,7 +274,7 @@ void *pdlsym(void *base, const char *symbol)
 			    char nulbuf[1];
 			    readN(elf.pid, strtab + stridx+j-1, &nulbuf, 1);
 			    if(memcmp("\0", &nulbuf, 0x1) == 0){
-			            printf("DBG: Symbol: %s, base: 0x%lx, file: %s, size: %zu, char: %x, strtab: 0x%lx, stridx: %u, j: %zu\n", symbol, elf.base, maps_tmp->pathname, j, (unsigned int) *nulbuf, (unsigned long)strtab, stridx, j);
+			            printf("-  DEBUG: Symbol: %s, base: 0x%lx, file: %s, size: %zu, char: %x, strtab: 0x%lx, stridx: %u, j: %zu\n", symbol, elf.base, maps_tmp->pathname, j, (unsigned int) *nulbuf, (unsigned long)strtab, stridx, j);
 				    if(value != 0x7f8f6a097f70)
 			                    return (void *)value;
 			    }
