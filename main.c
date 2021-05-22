@@ -572,9 +572,11 @@ int main (int argc, char *argv[]){
 	const uintptr_t pthread_self_addr = 	find_remote_symbol(target, "pthread_self",	"pthread_self");
 	const uintptr_t time_addr = 		find_remote_symbol(target, "time", 		"time");
 	const uintptr_t printf_addr = 		find_remote_symbol(target, "printf",		"printf");
+	const uintptr_t render2dtree_addr = 	rwx_addr+0xb00;
+	const uintptr_t loadstub_addr = 	rwx_addr+0x2000;
 
 	this_addr = rwx_addr+0x700;
-	const unsigned char printf_string[] = "THREAD %ld heartbeat %lu\n";
+	const unsigned char printf_string[] = "THREAD %ld @ %llx frame: %ld\n";
 	pwrite(fd, &printf_string, sizeof(printf_string), this_addr);
 	const uintptr_t printf_string_addr = this_addr;
 
@@ -584,7 +586,7 @@ int main (int argc, char *argv[]){
 		0x48, 0x89, 0xe5,                                               //mov    rbp, rsp
 		0x48, 0x83, 0xec, 0x20,                                         //sub    rsp, 0x20
 		0x48, 0x89, 0x7d, 0xf8,                                         //mov    -0x8(%rbp), rdi
-		0xbf, 0x40, 0x42, 0x0F, 0x00,                                   //mov    $0xF4240,%edi
+		0xbf, 0x40, 0x42, 0x0f, 0x00,                                   //mov    $0xf4240,%edi
                 0x48, 0xb8,                                                     //movabs rax,
                 ((usleep_addr) & 0xFF),                                         // Our address for the jmp target
                 ((usleep_addr>>8) & 0xFF),
@@ -593,7 +595,7 @@ int main (int argc, char *argv[]){
                 ((usleep_addr>>32) & 0xFF),
                 ((usleep_addr>>40) & 0xFF),
                 ((usleep_addr>>48) & 0xFF),
-                ((usleep_addr>>56) & 0xFF),
+		((usleep_addr>>56) & 0xFF),
 		0xff, 0xd0,                                               	//callq  *%rax
 
 
@@ -612,18 +614,16 @@ int main (int argc, char *argv[]){
 		0x89, 0xcf,                                                    //mov    %ecx,%edi
 		0x48, 0x89, 0x45, 0xe8,                                        //mov    %rax,-0x18(%rbp)
 
-		0x48, 0xb8,                                                    //movabs rax,
-                ((time_addr) & 0xFF),                                          // Our address for the jmp target
-                ((time_addr>>8) & 0xFF),
-                ((time_addr>>16) & 0xFF),
-                ((time_addr>>24) & 0xFF),
-                ((time_addr>>32) & 0xFF),
-                ((time_addr>>40) & 0xFF),
-                ((time_addr>>48) & 0xFF),
-                ((time_addr>>56) & 0xFF),
-                0xff, 0xd0,                                                    //callq  *%rax
-
-
+		0x49, 0xbf,                                                    //movabs r15,
+                ((render2dtree_addr) & 0xFF),                                  // Our address for the
+                ((render2dtree_addr>>8) & 0xFF),
+                ((render2dtree_addr>>16) & 0xFF),
+                ((render2dtree_addr>>24) & 0xFF),
+                ((render2dtree_addr>>32) & 0xFF),
+                ((render2dtree_addr>>40) & 0xFF),
+                ((render2dtree_addr>>48) & 0xFF),
+                ((render2dtree_addr>>56) & 0xFF),
+		0x49, 0x8b, 0x4f, 0x30,						//mov rcx, qword ptr [r15+0x30]
 		0x48, 0xbf,                                                    //movabs rdi,
                 ((printf_string_addr) & 0xFF),                                 // Our address for the jmp target
                 ((printf_string_addr>>8) & 0xFF),
@@ -633,11 +633,8 @@ int main (int argc, char *argv[]){
                 ((printf_string_addr>>40) & 0xFF),
                 ((printf_string_addr>>48) & 0xFF),
                 ((printf_string_addr>>56) & 0xFF),
-
+		0x4c, 0x89, 0xfa,						//mov rdx, r15
 		0x48, 0x8b, 0x75, 0xe8,                                        //mov    -0x18(%rbp),%rsi
-		0x48, 0x89, 0xc2,                                              //mov    %rax,%rdx
-		0xb0, 0x00,                                                    //mov    $0x0,%al
-
 		0x48, 0xbb,                                                    //movabs rbx,
                 ((printf_addr) & 0xFF),                                        // Our address for the jmp target
                 ((printf_addr>>8) & 0xFF),
@@ -649,6 +646,16 @@ int main (int argc, char *argv[]){
                 ((printf_addr>>56) & 0xFF),
                 0xff, 0xd3,                                                    //callq  *%rbx
 		0x89, 0x45, 0xe4,                                              //mov    %eax,-0x1c(%rbp)
+                0x48, 0xbb,                                                     //movabs rbx,
+                ((loadstub_addr) & 0xFF),                                 // Our address for the jmp target
+                ((loadstub_addr>>8) & 0xFF),
+                ((loadstub_addr>>16) & 0xFF),
+                ((loadstub_addr>>24) & 0xFF),
+                ((loadstub_addr>>32) & 0xFF),
+                ((loadstub_addr>>40) & 0xFF),
+                ((loadstub_addr>>48) & 0xFF),
+                ((loadstub_addr>>56) & 0xFF),
+                0xff, 0xd3,                                                     //callq  *%rbx
 
 		0x48, 0xb8,                                                    //movabs rax,
                 ((this_addr) & 0xFF),                                          // Our address for the jmp target
@@ -729,6 +736,124 @@ int main (int argc, char *argv[]){
 	pwrite(fd, &thread_init_asm, sizeof(thread_init_asm), this_addr-2);
 
 
+	this_addr = rwx_addr+0xb00;
+
+	const unsigned char cguigraphics_render2dtree_asm[] = {                          //_start 
+		0x55,                                                     //push   %rbp
+		0x41, 0x57,                                               //push   %r15
+		0x41, 0x56,                                               //push   %r14
+		0x41, 0x55,                                               //push   %r13
+		0x41, 0x54,                                               //push   %r12
+		0x53,                                                     //push   %rbx
+		0x48, 0x83, 0xec, 0x78,                                   //sub    $0x78,%rsp
+		0x49, 0xbf,                                               //movabs r15,
+                ((this_addr) & 0xFF),                                     // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0x4d, 0x89, 0x07,                                         //mov    %r8,(%r15)
+		0x4d, 0x89, 0x4f, 0x08,                                   //mov    %r9,0x8(%r15)
+		0x49, 0x89, 0x7f, 0x10,                                   //mov    %rdi,0x10(%r15)
+		0x49, 0x89, 0x77, 0x18,                                   //mov    %rsi,0x18(%r15)
+		0x49, 0x89, 0x57, 0x20,                                   //mov    %rdx,0x20(%r15)
+		0x49, 0x89, 0x4f, 0x28,                                   //mov    %rcx,0x28(%r15)
+		0x49, 0xff, 0x47, 0x30,                                   //incq   0x30(%r15)
+		0x48, 0x83, 0xc4, 0x78,                                   //a0xdd,    $0x78,%rsp
+		/*
+		0x57,							  //push rdi
+                0xbf, 0x7D, 0x00, 0x00, 0x00,                                   //mov    $0x3e8,%edi
+                0x48, 0xb8,                                                     //movabs rax,
+                ((usleep_addr) & 0xFF),                                         // Our address for the jmp target
+                ((usleep_addr>>8) & 0xFF),
+                ((usleep_addr>>16) & 0xFF),
+                ((usleep_addr>>24) & 0xFF),
+                ((usleep_addr>>32) & 0xFF),
+                ((usleep_addr>>40) & 0xFF),
+                ((usleep_addr>>48) & 0xFF),
+                ((usleep_addr>>56) & 0xFF),
+                0xff, 0xd0,                                                     //callq  *%rax
+		0x5f,							  // pop rdi
+		*/
+		0x5b,                                                     //pop    %rbx
+		0x41, 0x5c,                                               //pop    %r12
+		0x41, 0x5d,                                               //pop    %r13
+		0x41, 0x5e,                                               //pop    %r14
+		0x41, 0x5f,                                               //pop    %r15
+		0x5d,                                                     //pop    %rbp
+		0xc3                                                      //retq 
+	};
+
+	printf("+ CGuiGraphics::Render2dTree(...) write allocation: 0x%llx\n", this_addr);
+	target_addr =  find_remote_symbol(target, "_ZNK12CGuiGraphics12Render2dTreeERK8CMatrix4IfEP16CGraphicalObjectPK17SScissorRectangleR6CArrayIS5_EPSA_SC_", "CGuiGraphics::Render2dTree(...)");
+
+	uintptr_t that_addr = rwx_addr + 0xc00;
+	printf("+ Backing up CGuiGraphics::Render2dTree(...) source: 0x%lx, dest: 0x%lx\n", target_addr, that_addr);
+
+	printf("+ Seeking for ret in CGuiGraphics::Render2dTree(..) @ 0x%lx\n", target_addr);
+
+	char search_buf[100];
+	char * ptr_chr;
+	int i = target_addr;
+	for( ; i-target_addr <= 0x5000 ; i += sizeof(search_buf)){
+		pread(fd, &search_buf, sizeof(search_buf), i);
+		ptr_chr = (char*) memchr(&search_buf, 0xc3, sizeof(search_buf));
+		if(ptr_chr != NULL){
+			printf("-  ret found at %lx\n", ptr_chr-search_buf+i );
+			pwrite(fd, &search_buf, ptr_chr-search_buf+1, that_addr+i-target_addr);
+			break;
+		}else{
+			printf("-  no @ %x\n", i);
+			pwrite(fd, &search_buf, sizeof(search_buf), that_addr+i-target_addr);
+		}
+	}
+
+	if(ptr_chr == NULL){
+		printf("!!! FATAL: Failed to find ret in CGuiGraphics::Render2dTree()\n");
+		exit(1);
+	}
+
+	printf("-  Final length: %lu\n", (ptr_chr-search_buf+i+1-target_addr));
+
+
+
+        printf("+ Overriding CGuiGraphics::Render2dTree(...) with stub, bytes: %lu @%lx\n", sizeof(cguigraphics_render2dtree_asm), target_addr);
+        pwrite(fd, &cguigraphics_render2dtree_asm, sizeof(cguigraphics_render2dtree_asm),  target_addr);
+
+
+	const unsigned char cguigraphics_render2dtree_loadstub_asm[] = {                       //_loadstub 
+		0x55,                                                     //push   %rbp
+		0x49, 0xbf,                                               //movabs r15,
+                ((this_addr) & 0xFF),                                     // Our address for the jmp target
+                ((this_addr>>8) & 0xFF),
+                ((this_addr>>16) & 0xFF),
+                ((this_addr>>24) & 0xFF),
+                ((this_addr>>32) & 0xFF),
+                ((this_addr>>40) & 0xFF),
+                ((this_addr>>48) & 0xFF),
+                ((this_addr>>56) & 0xFF),
+		0x4d, 0x8b, 0x07,                                         //mov    (%r15),%r8
+		0x4d, 0x8b, 0x4f, 0x08,                                   //mov    0x8(%r15),%r9
+		0x49, 0x8b, 0x7f, 0x10,                                   //mov    0x10(%r15),%rdi
+		0x49, 0x8b, 0x77, 0x18,                                   //mov    0x18(%r15),%rsi
+		0x49, 0x8b, 0x57, 0x20,                                   //mov    0x20(%r15),%rdx
+		0x49, 0x8b, 0x4f, 0x28,                                   //mov    0x28(%r15),%rcx
+		0x49, 0x81, 0xc7, 0x00, 0x01, 0x00, 0x00,                 //a0xdd,    $0x100,%r15
+		0x41, 0xff, 0xd7,                                         //callq  *%r15
+		0x5d,                                                     //pop    %rbp
+		0xc3                                                      //retq   
+			 
+	};
+
+	this_addr = rwx_addr+0x2000;
+	printf("+ Writing CGuiGraphics::Render2dTree( LOADSTUB ), bytes: %lu @%llx\n", sizeof(cguigraphics_render2dtree_loadstub_asm), this_addr);
+	pwrite(fd, &cguigraphics_render2dtree_loadstub_asm, sizeof(cguigraphics_render2dtree_loadstub_asm),  this_addr);
+
+	/* Run thread_init in remote context */
+
         printf("+ Getting process registers\n");
         if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
                 perror ("ptrace(GETREGS):");
@@ -741,6 +866,7 @@ int main (int argc, char *argv[]){
                 exit (1);
         }
 
+	this_addr = rwx_addr+0xa00; // Address for thread_init
 	regs.rip = this_addr;
 	printf("+ process register rip: %llx\n", regs.rip);
 	printf("+ process register rip: %llx, rax: %llx, rbx: %llx, rcx: %llx, rdx: %llx, rsp: %llx, rbp: %llx, rsi: %llx, rdi: %llx, r12: %llx, r13: %llx, r14: %llx, r15: %llx\n", regs.rip, regs.rax, regs.rbx, regs.rcx, regs.rdx, regs.rsp, regs.rbp, regs.rsi, regs.rdi, regs.r12, regs.r13, regs.r14, regs.r15);
