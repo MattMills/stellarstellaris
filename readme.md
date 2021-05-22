@@ -33,7 +33,7 @@ It uses pre-defined memory addresses and the ptrace API to patch in new code or 
 ## Building
 
 ```
-clang main.c pdlsym.c -o stellarstellaris
+clang main.c pdlsym.c pmparser.c -o stellarstellaris 
 ```
 
 ## Running
