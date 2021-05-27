@@ -126,13 +126,15 @@ int main (int argc, char *argv[]){
 	/* Game version magic string */
 	//addr = 0x2332FBF; //Butler v2.8.1
 	//addr = 0x260a6c6; //Dick v3.0.1
-	addr = 0x260a818; //Dick v3.0.2
+	//addr = 0x260a818; //Dick v3.0.2
+	addr = 0x2616dc6; //Dick v3.0.3
 	//
 	//unsigned char version_buf[14];
 	//unsigned char expected_version[] = "Butler v2.8.1";
 	//unsigned char version_buf[12];
 	//unsigned char expected_version[] = "Dick v3.0.1";
-	const char  expected_version[] = "Dick v3.0.2";
+	//const char  expected_version[] = "Dick v3.0.2";
+	const char expected_version[] = "Dick v3.0.3";
 	char version_buf[sizeof(expected_version)];
 
 	pread(fd, &version_buf, sizeof(version_buf), addr);

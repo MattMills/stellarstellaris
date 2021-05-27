@@ -1,6 +1,6 @@
 # StellarStellaris 
 
-Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.2 Linux ONLY. A Windows version might be attempted but without symbols (.pdb) it will likely be a simplified version.
+Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.3 Linux ONLY. A Windows version might be attempted but without symbols (.pdb) it will likely be a simplified version.
 
 ## WARNING WARNING WARNING 
 
