@@ -223,7 +223,8 @@ int main (int argc, char *argv[]){
 
 	//We are back to normal execution with our own shiny memory allocation for executable code.
 	//
-	
+	const uintptr_t current_frame_addr = find_remote_symbol(target, "_ZN12CPdx3DObject14_nCurrentFrameE", "CPdx3DObject::_nCurrentFrame");
+
 	if( /* ::KillObject() */ 0 ){
 		this_addr = rwx_addr+10000;
 		const unsigned char CGuiObject_KillObject_asm[] = {
@@ -383,8 +384,16 @@ int main (int argc, char *argv[]){
 
 		const unsigned char CFleetView_Update_asm[] = {
 			0x48, 0x31, 0xc0,					  //xor rax,rax
-			0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
-			0x83, 0x38, 0x00,                                         //cmpl   $0x0,(%rax)
+			0xa1,                                             //mov eax, dword ptr [below]
+                        ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
+                        ((current_frame_addr>>8) & 0xFF),
+                        ((current_frame_addr>>16) & 0xFF),
+                        ((current_frame_addr>>24) & 0xFF),
+                        ((current_frame_addr>>32) & 0xFF),
+                        ((current_frame_addr>>40) & 0xFF),
+                        ((current_frame_addr>>48) & 0xFF),
+                        ((current_frame_addr>>56) & 0xFF),
+			0xa9, 0x07, 0x00, 0x00, 0x00,                                    //test   eax, 0x7
 			0x74, 0x05,                                               //je    +0x5
 			0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
 			0xc3,                                                     //retq   
@@ -428,8 +437,16 @@ int main (int argc, char *argv[]){
 
 	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm[] = {                     
 		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
-		0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
-		0x83, 0x38, 0x01,                                         //cmpl   $0x1,(%rax)
+                0xa1,                                             //mov eax, dword ptr [below]
+                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
+                ((current_frame_addr>>8) & 0xFF),
+                ((current_frame_addr>>16) & 0xFF),
+                ((current_frame_addr>>24) & 0xFF),
+                ((current_frame_addr>>32) & 0xFF),
+                ((current_frame_addr>>40) & 0xFF),
+                ((current_frame_addr>>48) & 0xFF),
+                ((current_frame_addr>>56) & 0xFF),
+                0xa9, 0x0f, 0x00, 0x00, 0x00,                                    //test   eax, 0xf
 		0x74, 0x05,                                               //je     .+0x5
 		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
 		0xc3,                                                     //retq   
@@ -474,8 +491,16 @@ int main (int argc, char *argv[]){
 
 	const unsigned char CPlanetView_Update_asm[] = {
 		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
-		0xb8, 0x84, 0x3b, 0x40, 0x03,                             //mov    $0x3403b84,%eax
-		0x83, 0x38, 0x02,                                         //cmpl   $0x2,(%rax)
+                0xa1,                                             //mov eax, dword ptr [below]
+                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
+                ((current_frame_addr>>8) & 0xFF),
+                ((current_frame_addr>>16) & 0xFF),
+                ((current_frame_addr>>24) & 0xFF),
+                ((current_frame_addr>>32) & 0xFF),
+                ((current_frame_addr>>40) & 0xFF),
+                ((current_frame_addr>>48) & 0xFF),
+                ((current_frame_addr>>56) & 0xFF),
+                0xa9, 0x0f, 0x00, 0x00, 0x00,                                   //test   eax, 0xf
 		0x74, 0x05,                                               //je     .+0x5
 		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
 		0xc3,                                                     //retq   
@@ -567,7 +592,7 @@ int main (int argc, char *argv[]){
 	pwrite(fd, &buf, sizeof(buf), addr);
 
 */
-
+	if(0){ //Broken rendering stuff
 	//Addresses of remote functions
 	const uintptr_t pthread_create_addr = 	find_remote_symbol(target, "pthread_create", 	"pthread_create");
 	const uintptr_t usleep_addr =		find_remote_symbol(target, "usleep", 		"usleep");
@@ -765,6 +790,7 @@ int main (int argc, char *argv[]){
 		0x49, 0x89, 0x4f, 0x28,                                   //mov    %rcx,0x28(%r15)
 		0x49, 0xff, 0x47, 0x30,                                   //incq   0x30(%r15)
 		0x48, 0x83, 0xc4, 0x78,                                   //a0xdd,    $0x78,%rsp
+		
 		/*
 		0x57,							  //push rdi
                 0xbf, 0x7D, 0x00, 0x00, 0x00,                                   //mov    $0x3e8,%edi
@@ -854,7 +880,7 @@ int main (int argc, char *argv[]){
 	printf("+ Writing CGuiGraphics::Render2dTree( LOADSTUB ), bytes: %lu @%llx\n", sizeof(cguigraphics_render2dtree_loadstub_asm), this_addr);
 	pwrite(fd, &cguigraphics_render2dtree_loadstub_asm, sizeof(cguigraphics_render2dtree_loadstub_asm),  this_addr);
 
-	/* Run thread_init in remote context */
+	// Run thread_init in remote context 
 
         printf("+ Getting process registers\n");
         if ((ptrace (PTRACE_GETREGS, target, NULL, &regs)) < 0){
@@ -932,7 +958,7 @@ int main (int argc, char *argv[]){
 	        perror("ptrace(CONT):");
 	        exit(1);
         }
-
+	}
 
 	close(fd);
 
