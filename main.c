@@ -446,7 +446,7 @@ int main (int argc, char *argv[]){
                 ((current_frame_addr>>40) & 0xFF),
                 ((current_frame_addr>>48) & 0xFF),
                 ((current_frame_addr>>56) & 0xFF),
-                0xa9, 0x0f, 0x00, 0x00, 0x00,                                    //test   eax, 0xf
+                0xa9, 0x0e, 0x00, 0x00, 0x00,                                    //test   eax, 0xe
 		0x74, 0x05,                                               //je     .+0x5
 		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
 		0xc3,                                                     //retq   
