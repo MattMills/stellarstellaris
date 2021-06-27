@@ -48,9 +48,16 @@ uintptr_t find_remote_symbol(pid_t pid, const char *mangled_symbol, const char *
 	return (uintptr_t) target_addr;
 }
 
+void print_help(int argc, char *argv[]){
+	printf("Usage/Help:\n");
+	printf("\t%s -p stellaris_pid [options]\n\n", argv[0]);
+
+
+	return;
+}
 
 int main (int argc, char *argv[]){
-	pid_t target;
+	pid_t target = 0;
 	struct user_regs_struct regs;
 	struct user_regs_struct regs_backup;
 	int syscall;
@@ -62,12 +69,24 @@ int main (int argc, char *argv[]){
 	unsigned char backup_rip_code[2];
 	const unsigned char replacement_rip_code[2] = {0x0f, 0x05};
 
-	if (argc != 2){
-		fprintf(stderr, "Usage:\n\t%s pid\n", argv[0]);
-		exit(1);
-	}
+	int opt;
 
-	target = (pid_t) atoi(argv[1]);
+	while ((opt = getopt(argc, argv, "p:")) != -1) {
+               switch (opt) {
+               case 'p':
+                   target = atoi(optarg);
+                   break;
+               default: /* '?' */
+		   print_help(argc, argv);
+                   exit(EXIT_FAILURE);
+               }
+        }
+
+	if (target == 0){
+		fprintf(stderr, "FATAL: pid not set\n\n");
+		print_help(argc, argv);
+		exit(EXIT_FAILURE);
+	}
 
 
 	pdlsym_init(target);

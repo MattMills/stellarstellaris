@@ -40,7 +40,7 @@ clang main.c pdlsym.c pmparser.c -o stellarstellaris
 Start stellaris, then run the compiled executable with the pid. It will either error out (if it's unable to find the right version magic), or apply itself. I usually apply it at the main menu, you should see the particle effect dissapear.
 
 ```
-./stellarstellaris `pgrep stellaris`
+./stellarstellaris -p `pgrep stellaris`
 ```
 
 ## Background / Why does it exist
