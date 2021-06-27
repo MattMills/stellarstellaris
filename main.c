@@ -51,6 +51,17 @@ uintptr_t find_remote_symbol(pid_t pid, const char *mangled_symbol, const char *
 void print_help(int argc, char *argv[]){
 	printf("Usage/Help:\n");
 	printf("\t%s -p stellaris_pid [options]\n\n", argv[0]);
+	printf("Options [SUBJECT TO CHANGE]:\n\n");
+	printf("\t-a Turn on ::KillObject changes (in dev) [default = off]\n");
+	printf("\t-b Turn off CFleetView::Update changes [default = on]\n");
+	printf("\t-c Turn off CMapIconManager::UpdateGalacticObjectIcon changes [default = on]\n");
+	printf("\t-d Turn off CPlanetView::Update changes [default = on]\n");
+	printf("\t-e Turn off CPdxParticleObject::RenderBuckets changes [default = on]\n");
+	printf("\t-f Turn off CShipGraphics::Update changes [default = on]\n");
+	printf("\t-g Disable CGui::PerFrameUpdate (game breaking) [default = enabled]\n");
+	printf("\t-h Disable CGui::HandelInput (input breaking) [default = enabled]\n");
+	printf("\t-i Disable COutliner::InternalUpdate (?? breaking) [default = enabled]\n");
+	printf("\t-j Turn on in development rendering thread code (currently broken)\n");
 
 
 	return;
@@ -70,9 +81,50 @@ int main (int argc, char *argv[]){
 	const unsigned char replacement_rip_code[2] = {0x0f, 0x05};
 
 	int opt;
+	int opt_killobject = 0;
+	int opt_cfleetview_update = 1;
+	int opt_cmapiconmanager_updategalacticobjecticon = 1;
+	int opt_cplanetview_update = 1;
+	int opt_cpdxparticleobject_renderbuckets = 1;
+	int opt_cshipgraphics_update = 1;
+	int opt_cgui_perframeupdate = 0;
+	int opt_cgui_handelinput = 0;
+	int opt_coutliner_internalupdate = 0;
+	int opt_render_thread = 0;
 
-	while ((opt = getopt(argc, argv, "p:")) != -1) {
+
+	while ((opt = getopt(argc, argv, "abcdefghijp:")) != -1) {
                switch (opt) {
+		case 'a': //a Turn on ::KillObject changes (in dev) [default = off]
+			opt_killobject = 1;
+			break;
+		case 'b': //Turn off CFleetView::Update changes [default = on]
+			opt_cfleetview_update = 0;
+			break;
+		case 'c'://Turn off CMapIconManager::UpdateGalacticObjectIcon changes [default = on]
+			opt_cmapiconmanager_updategalacticobjecticon = 0;
+			break;
+		case 'd'://Turn off CPlanetView::Update changes [default = on]
+			opt_cplanetview_update = 0;
+			break;
+		case 'e'://Turn off CPdxParticleObject::RenderBuckets changes [default = on]
+			opt_cpdxparticleobject_renderbuckets = 0;
+			break;
+		case 'f'://Turn off CShipGraphics::Update changes [default = on]
+			opt_cshipgraphics_update = 0;
+			break;
+		case 'g'://Disable CGui::PerFrameUpdate (game breaking) [default = enabled]
+			opt_cgui_perframeupdate = 1;
+			break;
+		case 'h'://Disable CGui::HandelInput (input breaking) [default = enabled]
+			opt_cgui_handelinput = 1;
+			break;
+		case 'i'://Disable COutliner::InternalUpdate (?? breaking) [default = enabled]
+			opt_coutliner_internalupdate = 1;
+			break;
+		case 'j'://Turn on in development rendering thread code (currently broken)
+			opt_render_thread = 1;
+			break;
                case 'p':
                    target = atoi(optarg);
                    break;
@@ -244,7 +296,7 @@ int main (int argc, char *argv[]){
 	//
 	const uintptr_t current_frame_addr = find_remote_symbol(target, "_ZN12CPdx3DObject14_nCurrentFrameE", "CPdx3DObject::_nCurrentFrame");
 
-	if( /* ::KillObject() */ 0 ){
+	if( opt_killobject ){
 		this_addr = rwx_addr+10000;
 		const unsigned char CGuiObject_KillObject_asm[] = {
 			0xc6, 0x87, 0xb0, 0x00, 0x00, 0x00, 0x01, 	// mov BYTE PTR [rdi+0xb0], 0x1
@@ -399,7 +451,7 @@ int main (int argc, char *argv[]){
 	}
 
 
-	if( /*CFleetView_Update*/ 1){
+	if( opt_cfleetview_update ){
 
 		const unsigned char CFleetView_Update_asm[] = {
 			0x48, 0x31, 0xc0,					  //xor rax,rax
@@ -453,165 +505,178 @@ int main (int argc, char *argv[]){
 		pwrite(fd, &CFleetView_Update_asm_jmp, sizeof(CFleetView_Update_asm_jmp), target_addr);
 
 	}
-
-	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm[] = {                     
-		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
-                0xa1,                                             //mov eax, dword ptr [below]
-                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
-                ((current_frame_addr>>8) & 0xFF),
-                ((current_frame_addr>>16) & 0xFF),
-                ((current_frame_addr>>24) & 0xFF),
-                ((current_frame_addr>>32) & 0xFF),
-                ((current_frame_addr>>40) & 0xFF),
-                ((current_frame_addr>>48) & 0xFF),
-                ((current_frame_addr>>56) & 0xFF),
-                0xa9, 0x0e, 0x00, 0x00, 0x00,                                    //test   eax, 0xe
-		0x74, 0x05,                                               //je     .+0x5
-		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
-		0xc3,                                                     //retq   
-		0x58,                                                     //pop    %rax
-		0x55,                                                     //push   %rbp
-		0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
-		0x41, 0x57,                                               //push   %r15
-		0x41, 0x56,                                               //push   %r14
-		0x41, 0x55,                                               //push   %r13
-		0x41, 0x54,                                               //push   %r12
-		0x53,                                                     //push   %rbx
-		0x48, 0x83, 0xec, 0x38,                                   //sub    $0x38,%rsp
-		0x50,                                                     //push   %rax
-		0xc3                                                      //ret
-	};
-
-
-	this_addr = rwx_addr+0x500;
-        printf("+ Writing CMapIconManager::UpdateGalacticObjectIcons replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
-        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
-
+	if (opt_cmapiconmanager_updategalacticobjecticon){
+		const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm[] = {                     
+			0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+	                0xa1,                                             //mov eax, dword ptr [below]
+	                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
+	                ((current_frame_addr>>8) & 0xFF),
+	                ((current_frame_addr>>16) & 0xFF),
+	                ((current_frame_addr>>24) & 0xFF),
+	                ((current_frame_addr>>32) & 0xFF),
+	                ((current_frame_addr>>40) & 0xFF),
+	                ((current_frame_addr>>48) & 0xFF),
+	                ((current_frame_addr>>56) & 0xFF),
+	                0xa9, 0x0e, 0x00, 0x00, 0x00,                                    //test   eax, 0xe
+			0x74, 0x05,                                               //je     .+0x5
+			0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
+			0xc3,                                                     //retq   
+			0x58,                                                     //pop    %rax
+			0x55,                                                     //push   %rbp
+			0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
+			0x41, 0x57,                                               //push   %r15
+			0x41, 0x56,                                               //push   %r14
+			0x41, 0x55,                                               //push   %r13
+			0x41, 0x54,                                               //push   %r12
+			0x53,                                                     //push   %rbx
+			0x48, 0x83, 0xec, 0x38,                                   //sub    $0x38,%rsp
+			0x50,                                                     //push   %rax
+			0xc3                                                      //ret
+		};
 	
-	const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm_jmp[] = {                    
-		0x48, 0x31, 0xc0,                                       //xor    %rax,%rax
-		0x48, 0xb8,                                             //movabs rax,
-                ((this_addr) & 0xFF),                           // Our address for the jmp target
-                ((this_addr>>8) & 0xFF),
-                ((this_addr>>16) & 0xFF),
-                ((this_addr>>24) & 0xFF),
-                ((this_addr>>32) & 0xFF),
-                ((this_addr>>40) & 0xFF),
-                ((this_addr>>48) & 0xFF),
-                ((this_addr>>56) & 0xFF),
-		0xff, 0xd0,                                               //callq  *%rax
-		0x90, 0x90						// nop nop
-	};
-
-	target_addr =  find_remote_symbol(target, "_ZN15CMapIconManager25UpdateGalacticObjectIconsEv", "CMapIconManager::UpdateGalacticObjectIcons()");
-        printf("+ Overriding CMapIconManager::UpdateGalacticObjectIcons with jmp, bytes: %lu\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp));
-        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm_jmp, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp), (uintptr_t) target_addr);
-
-
-	const unsigned char CPlanetView_Update_asm[] = {
-		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
-                0xa1,                                             //mov eax, dword ptr [below]
-                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
-                ((current_frame_addr>>8) & 0xFF),
-                ((current_frame_addr>>16) & 0xFF),
-                ((current_frame_addr>>24) & 0xFF),
-                ((current_frame_addr>>32) & 0xFF),
-                ((current_frame_addr>>40) & 0xFF),
-                ((current_frame_addr>>48) & 0xFF),
-                ((current_frame_addr>>56) & 0xFF),
-                0xa9, 0x0f, 0x00, 0x00, 0x00,                                   //test   eax, 0xf
-		0x74, 0x05,                                               //je     .+0x5
-		0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
-		0xc3,                                                     //retq   
-		0x58,                                                     //pop    %rax
-		0x55,                                                     //push   %rbp
-		0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
-		0x41, 0x57,                                               //push   %r15
-		0x41, 0x56,                                               //push   %r14
-		0x41, 0x55,                                               //push   %r13
-		0x41, 0x54,                                               //push   %r12
-		0x53,                                                     //push   %rbx
-		0x48, 0x81, 0xec, 0x08, 0x05, 0x00, 0x00,                 //sub    $0x508,%rsp
-		0x50,                                                     //push   %rax
-		0xc3                                                      //ret
-	};
-        
-	this_addr = rwx_addr+0x600;
-
-	printf("+ Writing CPlanetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CPlanetView_Update_asm), (this_addr));
-        pwrite(fd, &CPlanetView_Update_asm, sizeof(CPlanetView_Update_asm), this_addr);
-                                          
-	const unsigned char CPlanetView_Update_asm_jmp[] = {                 
-		0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
-		0x48, 0xb8,                                             //movabs rax,
-                ((this_addr) & 0xFF),                           // Our address for the jmp target
-                ((this_addr>>8) & 0xFF),
-                ((this_addr>>16) & 0xFF),
-                ((this_addr>>24) & 0xFF),
-                ((this_addr>>32) & 0xFF),
-                ((this_addr>>40) & 0xFF),
-                ((this_addr>>48) & 0xFF),
-                ((this_addr>>56) & 0xFF),
-		0xff, 0xd0,                                               //callq  *%rax
-		0x90,                                                     //nop
-		0x90, 0x90, 0x90, 0x90                                                      //nop nopnopnop
-	};
-
-	target_addr =  find_remote_symbol(target, "_ZN11CPlanetView6UpdateEv", "CPlanetView::Update()");
-	printf("+ Overriding CPlanetView::Update with jmp, bytes: %lu\n", sizeof(CPlanetView_Update_asm_jmp));
-        pwrite(fd, &CPlanetView_Update_asm_jmp, sizeof(CPlanetView_Update_asm_jmp),  target_addr);
+	
+		this_addr = rwx_addr+0x500;
+	        printf("+ Writing CMapIconManager::UpdateGalacticObjectIcons replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
+	        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm), this_addr);
+	
+		
+		const unsigned char CMapIconManager_UpdateGalacticObjectIcons_asm_jmp[] = {                    
+			0x48, 0x31, 0xc0,                                       //xor    %rax,%rax
+			0x48, 0xb8,                                             //movabs rax,
+	                ((this_addr) & 0xFF),                           // Our address for the jmp target
+	                ((this_addr>>8) & 0xFF),
+	                ((this_addr>>16) & 0xFF),
+	                ((this_addr>>24) & 0xFF),
+	                ((this_addr>>32) & 0xFF),
+	                ((this_addr>>40) & 0xFF),
+	                ((this_addr>>48) & 0xFF),
+	                ((this_addr>>56) & 0xFF),
+			0xff, 0xd0,                                               //callq  *%rax
+			0x90, 0x90						// nop nop
+		};
+	
+		target_addr =  find_remote_symbol(target, "_ZN15CMapIconManager25UpdateGalacticObjectIconsEv", "CMapIconManager::UpdateGalacticObjectIcons()");
+	        printf("+ Overriding CMapIconManager::UpdateGalacticObjectIcons with jmp, bytes: %lu\n", sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp));
+	        pwrite(fd, &CMapIconManager_UpdateGalacticObjectIcons_asm_jmp, sizeof(CMapIconManager_UpdateGalacticObjectIcons_asm_jmp), (uintptr_t) target_addr);
+	}
 
 
+	if(opt_cplanetview_update){
+		const unsigned char CPlanetView_Update_asm[] = {
+			0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+	                0xa1,                                             //mov eax, dword ptr [below]
+	                ((current_frame_addr) & 0xFF),                                   // Our address for the jmp target
+	                ((current_frame_addr>>8) & 0xFF),
+	                ((current_frame_addr>>16) & 0xFF),
+	                ((current_frame_addr>>24) & 0xFF),
+	                ((current_frame_addr>>32) & 0xFF),
+	                ((current_frame_addr>>40) & 0xFF),
+	                ((current_frame_addr>>48) & 0xFF),
+	                ((current_frame_addr>>56) & 0xFF),
+	                0xa9, 0x0f, 0x00, 0x00, 0x00,                                   //test   eax, 0xf
+			0x74, 0x05,                                               //je     .+0x5
+			0x48, 0x83, 0xc4, 0x08,                                   //add,    $0x8,%rsp
+			0xc3,                                                     //retq   
+			0x58,                                                     //pop    %rax
+			0x55,                                                     //push   %rbp
+			0x48, 0x89, 0xe5,                                         //mov    %rsp,%rbp
+			0x41, 0x57,                                               //push   %r15
+			0x41, 0x56,                                               //push   %r14
+			0x41, 0x55,                                               //push   %r13
+			0x41, 0x54,                                               //push   %r12
+			0x53,                                                     //push   %rbx
+			0x48, 0x81, 0xec, 0x08, 0x05, 0x00, 0x00,                 //sub    $0x508,%rsp
+			0x50,                                                     //push   %rax
+			0xc3                                                      //ret
+		};
+	        
+		this_addr = rwx_addr+0x600;
+	
+		printf("+ Writing CPlanetView::Update replacement, bytes: %lu to addr: 0x%02llx\n", sizeof(CPlanetView_Update_asm), (this_addr));
+	        pwrite(fd, &CPlanetView_Update_asm, sizeof(CPlanetView_Update_asm), this_addr);
+	                                          
+		const unsigned char CPlanetView_Update_asm_jmp[] = {                 
+			0x48, 0x31, 0xc0,                                         //xor    %rax,%rax
+			0x48, 0xb8,                                             //movabs rax,
+	                ((this_addr) & 0xFF),                           // Our address for the jmp target
+	                ((this_addr>>8) & 0xFF),
+	                ((this_addr>>16) & 0xFF),
+	                ((this_addr>>24) & 0xFF),
+	                ((this_addr>>32) & 0xFF),
+	                ((this_addr>>40) & 0xFF),
+	                ((this_addr>>48) & 0xFF),
+	                ((this_addr>>56) & 0xFF),
+			0xff, 0xd0,                                               //callq  *%rax
+			0x90,                                                     //nop
+			0x90, 0x90, 0x90, 0x90                                                      //nop nopnopnop
+		};
+	
+		target_addr =  find_remote_symbol(target, "_ZN11CPlanetView6UpdateEv", "CPlanetView::Update()");
+		printf("+ Overriding CPlanetView::Update with jmp, bytes: %lu\n", sizeof(CPlanetView_Update_asm_jmp));
+	        pwrite(fd, &CPlanetView_Update_asm_jmp, sizeof(CPlanetView_Update_asm_jmp),  target_addr);
+	
+	}
 
-	target_addr =  find_remote_symbol(target, "_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai", "CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)");
-	pread(fd, &buf, sizeof(buf),  target_addr);
-	printf("-  DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
-
-	buf[0] = 0xc3;   // ret
-	//buf[0] = 0x55; //
-	pwrite(fd, &buf, sizeof(buf), target_addr);
+	if(opt_cpdxparticleobject_renderbuckets){
 
 
-	target_addr =  find_remote_symbol(target, "_ZN13CShipGraphics6UpdateEffR23CEntityGarbageCollectorPK15CGalacticObject", "CShipGraphics::Update(float, float, CEntityGarbageCollector&, CGalacticObject const*)");
-	pread(fd, &buf, sizeof(buf),  target_addr);
-	printf("-  DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
-	buf[0] = 0xc3;
-	//buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), target_addr);
+		target_addr =  find_remote_symbol(target, "_ZN18CPdxParticleObject13RenderBucketsEP9CGraphicsPK7CCamerai", "CPdxParticleObject::RenderBuckets(CGraphics*, CCamera const*, int)");
+		pread(fd, &buf, sizeof(buf),  target_addr);
+		printf("-  DEBUG: CPdxParticleObject::RenderBuckets addr: 0x%02hhx\n", *buf);
+	
+		buf[0] = 0xc3;   // ret
+		//buf[0] = 0x55; //
+		pwrite(fd, &buf, sizeof(buf), target_addr);
+	
+	}
+	if(opt_cshipgraphics_update){
+	
+		target_addr =  find_remote_symbol(target, "_ZN13CShipGraphics6UpdateEffR23CEntityGarbageCollectorPK15CGalacticObject", "CShipGraphics::Update(float, float, CEntityGarbageCollector&, CGalacticObject const*)");
+		pread(fd, &buf, sizeof(buf),  target_addr);
+		printf("-  DEBUG: CShipGraphics::Update addr: 0x%02hhx\n", *buf);
+		buf[0] = 0xc3;
+		//buf[0] = 0x55;
+		pwrite(fd, &buf, sizeof(buf), target_addr);
+	}
+	
 
 
 
-/*
 	//DEBUG changes that break stuff
 
-	addr = 0x00000000021db6f0; //CGui::PerFrameUpdate
-	pread(fd, &buf, sizeof(buf), addr);
-	printf("-  DEBUG: CGui::PerFrameUpdate addr: 0x%02hhx\n", *buf);
-
-	//buf[0] = 0xc3;
-        buf[0] = 0x41;
-	pwrite(fd, &buf, sizeof(buf), addr);
+	if(opt_cgui_perframeupdate){
+		target_addr = find_remote_symbol(target, "_ZN4CGui14PerFrameUpdateEf", "CGui::PerFrameUpdate()"); //CGui::PerFrameUpdate
+		pread(fd, &buf, sizeof(buf), target_addr);
+		printf("-  DEBUG: CGui::PerFrameUpdate addr: 0x%02hhx\n", *buf);
 	
-	addr = 0x00000000021dab10; //CGui::HandelInput
-	pread(fd, &buf, sizeof(buf), addr);
-	printf("-  DEBUG: CGui::HandelInput addr: 0x%02hhx\n", *buf);
+		buf[0] = 0xc3;
+	        //buf[0] = 0x41;
+		pwrite(fd, &buf, sizeof(buf), target_addr);
+	}
 
-	//buf[0] = 0xc3;
-	buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), addr);
+	if(opt_cgui_handelinput){
+
+		target_addr = find_remote_symbol(target, "_ZN4CGui11HandelInputEP6CMousePK9CKeyBoardR5CListI11CInputEventE", "CGui::HandelInput(CMouse*, CKeyBoard const*, CList<CInputEvent>&)"); //CGui::HandelInput
+		pread(fd, &buf, sizeof(buf), target_addr);
+		printf("-  DEBUG: CGui::HandelInput addr: 0x%02hhx\n", *buf);
+
+		buf[0] = 0xc3;
+		//buf[0] = 0x55;
+		pwrite(fd, &buf, sizeof(buf), target_addr);
+	}
 
 
+	if(opt_coutliner_internalupdate){
+		addr = find_remote_symbol(target, "_ZN9COutliner14InternalUpdateEb","COutliner::InternalUpdate(bool)"); //COutliner::InternalUpdate
+		pread(fd, &buf, sizeof(buf), target_addr);
+		printf("-  DEBUG: COutliner::InternalUpdate addr: 0x%02hhx\n", *buf);
+	
+		buf[0] = 0xc3;
+		//buf[0] = 0x55;
+		pwrite(fd, &buf, sizeof(buf), target_addr);
+	}
 
-	addr = 0x00000000018bc900; //COutliner::InternalUpdate
-	pread(fd, &buf, sizeof(buf), addr);
-	printf("-  DEBUG: COutliner::InternalUpdate addr: 0x%02hhx\n", *buf);
-
-	//buf[0] = 0xc3;
-	buf[0] = 0x55;
-	pwrite(fd, &buf, sizeof(buf), addr);
-
-*/
-	if(0){ //Broken rendering stuff
+	if(opt_render_thread){ //Broken rendering stuff
 	//Addresses of remote functions
 	const uintptr_t pthread_create_addr = 	find_remote_symbol(target, "pthread_create", 	"pthread_create");
 	const uintptr_t usleep_addr =		find_remote_symbol(target, "usleep", 		"usleep");
