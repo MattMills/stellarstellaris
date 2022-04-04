@@ -2,6 +2,14 @@
 
 Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.3 Linux ONLY. A Windows version might be attempted but without symbols (.pdb) it will likely be a simplified version.
 
+## Support discord:
+
+https://discord.gg/Mtm5nURDSC
+
+![Join Support discord link](https://discordapp.com/api/guilds/960348408990793838/widget.png?style=banner3)
+
+
+
 ## WARNING WARNING WARNING 
 
 This is pre-Beta software, use at your own risk. It only attaches in memory, so ultimately if it breaks something you can just restart the game, but it could corrupt a save or cause crashes. If it does, please let me know by opening a github issue.
