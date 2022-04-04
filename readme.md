@@ -6,7 +6,7 @@ Patching Stellaris in memory to enhance performance, especially late game. This 
 
 https://discord.gg/Mtm5nURDSC
 
-![Join Support discord link](https://discordapp.com/api/guilds/960348408990793838/widget.png?style=banner3)
+[![Join Support discord link](https://discordapp.com/api/guilds/960348408990793838/widget.png?style=banner3)](https://discord.gg/Mtm5nURDSC)
 
 
 
