@@ -1,3 +1,11 @@
+# Archived!
+
+This repo is getting archived in favor of https://github.com/MattMills/stellarstellaris-win, which will eventually be a multi-platform, multi-store supporting codebase.
+
+
+
+
+
 # StellarStellaris 
 
 Patching Stellaris in memory to enhance performance, especially late game. This is currently 3.0.3 Linux ONLY. A Windows version might be attempted but without symbols (.pdb) it will likely be a simplified version.
